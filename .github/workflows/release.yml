@@ -32,6 +32,7 @@ jobs:
       validate-command: make build && sh tests/test.sh
       package-paths: |
         VERSION
+        bin
         LICENSE
         LICENSE-APACHE
         NOTICE
