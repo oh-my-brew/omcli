@@ -1,7 +1,7 @@
-omcli combines components from the former omzcj/codex-remote,
-omzcj/dotfiles, and omzcj/lockscreen projects.
+omcli combines components from the former omzcj/dotfiles and
+omzcj/lockscreen projects.
 
-The Codex management and omcli integration code are distributed under the MIT
+The omcli integration code and xcodex command are distributed under the MIT
 License in LICENSE. The ncdu command wrapper derived from dotfiles and the
 lockscreen helper derived from lockscreen remain available under the Apache
 License 2.0 in LICENSE-APACHE.

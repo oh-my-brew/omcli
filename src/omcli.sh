@@ -1,3 +1,4 @@
+#!/bin/sh
 
 OMCLI_VERSION="@VERSION@"
 
@@ -8,7 +9,6 @@ Usage: omcli <command> [arguments]
 Commands:
   lockscreen             Lock the macOS screen immediately
   ncdu [command]         Create or read ncdu snapshots
-  codex [command]        Manage ChatGPT Desktop reuse of the Codex daemon
   xcodex                 Terminate processes holding Codex thread-writer locks
   help                   Show this help
 
@@ -17,7 +17,6 @@ Options:
   -v, --version          Show the installed version
 
 Run "omcli ncdu help" for ncdu snapshot commands.
-Run "omcli codex help" for Codex daemon commands.
 EOF
 }
 
@@ -209,7 +208,6 @@ omcli_main() {
       ;;
     lockscreen) omcli_lockscreen "$@" ;;
     ncdu) omcli_ncdu "$@" ;;
-    codex) codex_main "$@" ;;
     xcodex) omcli_xcodex "$@" ;;
     *) omcli_usage >&2; omcli_fail "unknown command: $omcli_command" ;;
   esac
