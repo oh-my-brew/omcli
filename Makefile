@@ -4,7 +4,6 @@ VERSION := $(shell tr -d '\n' < VERSION)
 
 build:
 	mkdir -p bin
-	sed 's/@VERSION@/$(VERSION)/g' src/codex.sh > bin/omcli
-	sed 's/@VERSION@/$(VERSION)/g' src/omcli.sh >> bin/omcli
+	sed 's/@VERSION@/$(VERSION)/g' src/omcli.sh > bin/omcli
 	chmod +x bin/omcli
 	clang -F /System/Library/PrivateFrameworks -framework login -o bin/omcli-lockscreen src/lockscreen.c

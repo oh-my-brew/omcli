@@ -6,13 +6,11 @@ REPOSITORY_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$REPOSITORY_DIR"
 
 # Only parse source and built scripts. The functional subcommands are never run.
-sh -n src/codex.sh
 sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.11.1" ]
-grep -F 'PROGRAM_VERSION="@VERSION@"' src/codex.sh >/dev/null
+[ "$expected_version" = "2026.09.24.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -27,7 +25,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu codex xcodex; do
+for command_name in lockscreen ncdu xcodex; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -125,14 +123,6 @@ if omcli_main ncdu dump >/dev/null 2>&1; then
 fi
 [ ! -e "$HOME/.ncdu.1234567890" ]
 
-codex_main() {
-  printf 'codex'
-  for argument in "$@"; do printf ' <%s>' "$argument"; done
-  printf '\n'
-}
-[ "$(omcli_main codex)" = "codex" ]
-[ "$(omcli_main codex update check)" = "codex <update> <check>" ]
-
 omcli_run() {
   for argument in "$@"; do printf '%s\n' "$argument"; done
 }
@@ -167,7 +157,5 @@ fi
 
 file bin/omcli-lockscreen | grep -F 'Mach-O' >/dev/null
 otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/login.framework' >/dev/null
-
-sh tests/codex-state.sh
 
 echo "tests passed"
