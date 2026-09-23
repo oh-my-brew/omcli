@@ -73,6 +73,8 @@ sh tests/test.sh
 修改 `VERSION` 后推送到 `main`。Release workflow 会执行隔离测试，并将
 `omcli-VERSION.tar.gz` 发布到名为 `vVERSION` 的 GitHub Release。发布自动化
 使用 `oh-my-infra/brew-ci`，发布结果位于 `oh-my-brew/omcli`。
+Release 包含 CI 构建的 arm64 `omcli-lockscreen`，Homebrew 安装不要求目标机器
+使用本地 Command Line Tools 重新编译该辅助程序。
 
 手动运行 Release workflow 默认只验证和打包，不发布：`publish=false` 使用
 现有版本运行验证并检查两次打包结果一致，不修改 `VERSION` 或创建 tag/release。
