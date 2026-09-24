@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.24.2" ]
+[ "$expected_version" = "2026.09.25.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -25,7 +25,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu xcodex; do
+for command_name in lockscreen ncdu sidecar xcodex; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -39,6 +39,22 @@ omcli_lockscreen_path() { printf '/mock/omcli-lockscreen\n'; }
 omcli_helper_is_executable() { [ "$1" = /mock/omcli-lockscreen ]; }
 lock_output="$(omcli_main lockscreen)"
 [ "$lock_output" = "/mock/omcli-lockscreen" ]
+
+sidecar_help_output="$(omcli_main sidecar)"
+[ "$sidecar_help_output" = "$(omcli_main sidecar help)" ]
+[ "$sidecar_help_output" = "$(omcli_main sidecar -h)" ]
+[ "$sidecar_help_output" = "$(omcli_main sidecar --help)" ]
+for sidecar_command_name in list connect disconnect; do
+  printf '%s\n' "$sidecar_help_output" | grep -F "$sidecar_command_name" >/dev/null
+done
+
+omcli_sidecar_path() { printf '/mock/omcli-sidecar\n'; }
+omcli_helper_is_executable() { [ "$1" = /mock/omcli-sidecar ]; }
+[ "$(omcli_main sidecar list)" = "$(printf '%s\n' /mock/omcli-sidecar list)" ]
+[ "$(omcli_main sidecar connect)" = "$(printf '%s\n' /mock/omcli-sidecar connect)" ]
+[ "$(omcli_main sidecar connect 'Desk iPad')" = "$(printf '%s\n' /mock/omcli-sidecar connect 'Desk iPad')" ]
+[ "$(omcli_main sidecar disconnect)" = "$(printf '%s\n' /mock/omcli-sidecar disconnect)" ]
+[ "$(omcli_main sidecar disconnect 'Desk iPad')" = "$(printf '%s\n' /mock/omcli-sidecar disconnect 'Desk iPad')" ]
 
 omcli_has_ncdu() { return 0; }
 omcli_epoch() { printf '1234567890\n'; }
@@ -143,7 +159,7 @@ if omcli_main xcodex >/dev/null 2>&1; then
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'ncdu unknown' 'xcodex extra'; do
+for rejected in 'lockscreen extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'xcodex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
@@ -157,5 +173,6 @@ fi
 
 file bin/omcli-lockscreen | grep -F 'Mach-O' >/dev/null
 otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/login.framework' >/dev/null
+file bin/omcli-sidecar | grep -F 'Mach-O' >/dev/null
 
 echo "tests passed"

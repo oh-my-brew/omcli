@@ -35,6 +35,7 @@ jobs:
         bin
         LICENSE
         LICENSE-APACHE
+        LICENSE-SIDECARLAUNCHER
         NOTICE
         README.md
         Makefile
