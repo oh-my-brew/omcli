@@ -5,3 +5,8 @@ The omcli integration code and xcodex command are distributed under the MIT
 License in LICENSE. The ncdu command wrapper derived from dotfiles and the
 lockscreen helper derived from lockscreen remain available under the Apache
 License 2.0 in LICENSE-APACHE.
+
+The Sidecar helper in src/sidecar.swift is adapted from SidecarLauncher by
+Jovany Ocasio (https://github.com/Ocasio-J/SidecarLauncher) and is distributed
+under the MIT License in LICENSE-SIDECARLAUNCHER. It uses Apple's undocumented
+SidecarCore private framework and may require updates after macOS releases.
