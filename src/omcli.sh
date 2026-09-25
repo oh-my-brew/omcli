@@ -10,7 +10,7 @@ Commands:
   lockscreen             Lock the macOS screen immediately
   ncdu [command]         Create or read ncdu snapshots
   sidecar [command]      Connect or disconnect an iPad with Sidecar
-  xcodex                 Terminate processes holding Codex thread-writer locks
+  codex                  Terminate processes holding Codex thread-writer locks
   help                   Show this help
 
 Options:
@@ -224,8 +224,8 @@ omcli_thread_writer_lock_pids() {
   /usr/sbin/lsof -t +D "$omcli_lock_dir" 2>/dev/null | /usr/bin/sort -nu
 }
 
-omcli_xcodex() {
-  [ "$#" -eq 0 ] || omcli_fail "xcodex does not accept arguments" || return
+omcli_codex() {
+  [ "$#" -eq 0 ] || omcli_fail "codex does not accept arguments" || return
 
   omcli_lock_pids="$(omcli_thread_writer_lock_pids)" || \
     omcli_fail "cannot inspect Codex thread-writer locks" || return
@@ -262,7 +262,7 @@ omcli_main() {
     lockscreen) omcli_lockscreen "$@" ;;
     ncdu) omcli_ncdu "$@" ;;
     sidecar) omcli_sidecar "$@" ;;
-    xcodex) omcli_xcodex "$@" ;;
+    codex) omcli_codex "$@" ;;
     *) omcli_usage >&2; omcli_fail "unknown command: $omcli_command" ;;
   esac
 }

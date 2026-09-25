@@ -10,7 +10,7 @@ omcli ncdu read
 omcli sidecar
 omcli sidecar connect
 omcli sidecar disconnect
-omcli xcodex
+omcli codex
 ```
 
 不带参数运行 `omcli` 只显示帮助，不会修改系统。项目仅支持运行 macOS
@@ -72,7 +72,7 @@ omcli sidecar disconnect [DEVICE]
 ### active writer 应急恢复
 
 ```sh
-omcli xcodex
+omcli codex
 ```
 
 该命令查找所有正在持有 `~/.codex/thread-writer-locks` 中文件的进程，去重后
@@ -107,7 +107,7 @@ Release 包含 CI 构建的 arm64 `omcli-lockscreen`，Homebrew 安装不要求�
 
 ## 许可证
 
-omcli 集成代码和 `xcodex` 使用 [MIT License](LICENSE)。随航 helper 基于
+omcli 集成代码和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
 [SidecarLauncher](https://github.com/Ocasio-J/SidecarLauncher) 修改，其 MIT
 许可证见 [LICENSE-SIDECARLAUNCHER](LICENSE-SIDECARLAUNCHER)。从
 `omzcj/dotfiles` 迁移的 ncdu 封装，以及从 `omzcj/lockscreen` 迁移的锁屏
