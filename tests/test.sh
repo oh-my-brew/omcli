@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.25.1" ]
+[ "$expected_version" = "2026.09.25.2" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -25,7 +25,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu sidecar xcodex; do
+for command_name in lockscreen ncdu sidecar codex; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -145,21 +145,21 @@ omcli_run() {
 omcli_thread_writer_lock_pids() {
   printf '%s\n' 101 202
 }
-expected_xcodex_output="$(printf '%s\n' \
+expected_codex_output="$(printf '%s\n' \
   /bin/kill -TERM 101 202 \
   'sent SIGTERM to Codex thread-writer lock holders: 101 202')"
-[ "$(omcli_main xcodex)" = "$expected_xcodex_output" ]
+[ "$(omcli_main codex)" = "$expected_codex_output" ]
 
 omcli_thread_writer_lock_pids() { return 0; }
-[ "$(omcli_main xcodex)" = "no Codex thread-writer lock holders found" ]
+[ "$(omcli_main codex)" = "no Codex thread-writer lock holders found" ]
 
 omcli_thread_writer_lock_pids() { printf 'not-a-pid\n'; }
-if omcli_main xcodex >/dev/null 2>&1; then
+if omcli_main codex >/dev/null 2>&1; then
   echo "accepted invalid thread-writer lock holder PID" >&2
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'xcodex extra'; do
+for rejected in 'lockscreen extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
