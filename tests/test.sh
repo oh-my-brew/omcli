@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.25.2" ]
+[ "$expected_version" = "2026.09.28.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -37,8 +37,16 @@ omcli_run() {
 }
 omcli_lockscreen_path() { printf '/mock/omcli-lockscreen\n'; }
 omcli_helper_is_executable() { [ "$1" = /mock/omcli-lockscreen ]; }
-lock_output="$(omcli_main lockscreen)"
-[ "$lock_output" = "/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen)" = "$(printf '%s\n' /mock/omcli-lockscreen lock)" ]
+[ "$(omcli_main lockscreen lock)" = "$(printf '%s\n' /mock/omcli-lockscreen lock)" ]
+[ "$(omcli_main lockscreen status)" = "$(printf '%s\n' /mock/omcli-lockscreen status)" ]
+
+lockscreen_help_output="$(omcli_main lockscreen help)"
+[ "$lockscreen_help_output" = "$(omcli_main lockscreen -h)" ]
+[ "$lockscreen_help_output" = "$(omcli_main lockscreen --help)" ]
+for lockscreen_command_name in lock status; do
+  printf '%s\n' "$lockscreen_help_output" | grep -F "$lockscreen_command_name" >/dev/null
+done
 
 sidecar_help_output="$(omcli_main sidecar)"
 [ "$sidecar_help_output" = "$(omcli_main sidecar help)" ]
@@ -159,7 +167,7 @@ if omcli_main codex >/dev/null 2>&1; then
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen status extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
@@ -172,7 +180,28 @@ if omcli_main unknown >/dev/null 2>&1; then
 fi
 
 file bin/omcli-lockscreen | grep -F 'Mach-O' >/dev/null
-otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/login.framework' >/dev/null
+if otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/' >/dev/null; then
+  echo "lockscreen helper links a private framework" >&2
+  exit 1
+fi
 file bin/omcli-sidecar | grep -F 'Mach-O' >/dev/null
+
+# Exercises the read-only path of the helper; the lock itself is never requested.
+lockscreen_status_output="$(bin/omcli-lockscreen status 2>/dev/null)" && lockscreen_status_code=0 || lockscreen_status_code=$?
+case "$lockscreen_status_code" in
+  0)
+    [ "$lockscreen_status_output" = "locked" ] || { echo "lockscreen status reported locked with unexpected output" >&2; exit 1; }
+    ;;
+  1)
+    [ "$lockscreen_status_output" = "unlocked" ] || { echo "lockscreen status reported unlocked with unexpected output" >&2; exit 1; }
+    ;;
+  3)
+    # No console lock state to read in this environment; the helper reported that.
+    ;;
+  *)
+    echo "lockscreen status exited with status $lockscreen_status_code" >&2
+    exit 1
+    ;;
+esac
 
 echo "tests passed"

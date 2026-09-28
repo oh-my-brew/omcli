@@ -4,6 +4,7 @@
 
 ```sh
 omcli lockscreen
+omcli lockscreen status
 omcli ncdu
 omcli ncdu dump
 omcli ncdu read
@@ -26,7 +27,22 @@ brew install oh-my-brew/tap/omcli
 
 ### 锁屏
 
-`omcli lockscreen` 立即锁定 macOS 屏幕。
+```sh
+omcli lockscreen
+omcli lockscreen status
+```
+
+- `omcli lockscreen` 请求锁定屏幕，并在 3 秒内回读系统的锁屏标志确认结果；
+  屏幕本来就已锁定时直接成功退出。
+- `omcli lockscreen status` 只读当前状态，输出 `locked` 或 `unlocked`。
+- 退出码：`0` 已锁屏，`1` 未锁屏，`2` 参数错误，`3` 无法读取锁屏状态或没有
+  可用的锁定机制。`omcli lockscreen` 不再无条件返回成功。
+
+锁定动作调用 Apple 私有 `login` 框架中的 `SACLockScreenImmediate`。helper 在
+运行时用 `dlopen` 解析该符号，因此符号被改名或移除时不会崩溃，而是回退到
+`pmset displaysleepnow`；这条回退路径需要系统已开启“进入睡眠或开始屏幕保护
+程序后立即要求输入密码”，否则回读会失败并明确报错。在 SSH 等非图形会话中
+调用通常锁不住控制台，这种情况会以未确认锁屏报错，而不是静默成功。
 
 ### ncdu 快照
 
@@ -90,8 +106,9 @@ sh tests/test.sh
 ```
 
 测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备或终止 writer
-进程。路由测试会替换外部执行边界。锁屏和随航辅助程序只会被编译并检查是否
-为 Mach-O，不会运行。
+进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
+确认没有链接私有框架，并执行只读的 `status` 子命令；随航辅助程序只会被编译并
+检查是否为 Mach-O。两者都不会被请求执行真正的动作。
 
 ## 发布
 

@@ -7,7 +7,7 @@ omcli_usage() {
 Usage: omcli <command> [arguments]
 
 Commands:
-  lockscreen             Lock the macOS screen immediately
+  lockscreen [command]   Lock the screen and confirm the lock took effect
   ncdu [command]         Create or read ncdu snapshots
   sidecar [command]      Connect or disconnect an iPad with Sidecar
   codex                  Terminate processes holding Codex thread-writer locks
@@ -19,6 +19,7 @@ Options:
 
 Run "omcli ncdu help" for ncdu snapshot commands.
 Run "omcli sidecar help" for Sidecar commands.
+Run "omcli lockscreen help" for lock screen commands.
 EOF
 }
 
@@ -58,11 +59,40 @@ omcli_helper_is_executable() {
   [ -x "$1" ]
 }
 
+omcli_lockscreen_usage() {
+  cat <<'EOF'
+Usage: omcli lockscreen [command]
+
+Commands:
+  (none)                 Lock the screen and confirm the lock took effect
+  status                 Report whether the screen is currently locked
+  help                   Show this help
+
+Exit status: 0 locked, 1 not locked, 2 usage error, 3 lock unavailable.
+EOF
+}
+
 omcli_lockscreen() {
-  [ "$#" -eq 0 ] || omcli_fail "lockscreen does not accept arguments" || return
+  omcli_lockscreen_command="${1:-lock}"
+  if [ "$#" -gt 0 ]; then shift; fi
+
+  case "$omcli_lockscreen_command" in
+    lock)
+      [ "$#" -eq 0 ] || omcli_fail "lockscreen does not accept arguments" || return ;;
+    status)
+      [ "$#" -eq 0 ] || omcli_fail "lockscreen status does not accept arguments" || return ;;
+    help|-h|--help)
+      [ "$#" -eq 0 ] || omcli_fail "lockscreen help does not accept arguments" || return
+      omcli_lockscreen_usage
+      return 0 ;;
+    *)
+      omcli_lockscreen_usage >&2
+      omcli_fail "unknown lockscreen command: $omcli_lockscreen_command" || return ;;
+  esac
+
   omcli_helper="$(omcli_lockscreen_path)" || return
   omcli_helper_is_executable "$omcli_helper" || omcli_fail "lockscreen helper is not installed" || return
-  omcli_external "$omcli_helper"
+  omcli_external "$omcli_helper" "$omcli_lockscreen_command"
 }
 
 omcli_sidecar_path() {
