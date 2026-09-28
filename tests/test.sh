@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.25.2" ]
+[ "$expected_version" = "2026.09.28.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -37,8 +37,30 @@ omcli_run() {
 }
 omcli_lockscreen_path() { printf '/mock/omcli-lockscreen\n'; }
 omcli_helper_is_executable() { [ "$1" = /mock/omcli-lockscreen ]; }
-lock_output="$(omcli_main lockscreen)"
-[ "$lock_output" = "/mock/omcli-lockscreen" ]
+omcli_lockscreen_is_locked() { return 1; }
+omcli_lockscreen_auto() { printf '%s\n' "auto:$1"; }
+omcli_lockscreen_try_method() { printf '%s\n' "$2:$1"; }
+omcli_lockscreen_doctor() { printf '%s\n' "doctor:$1"; }
+[ "$(omcli_main lockscreen)" = "auto:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock)" = "auto:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method direct)" = "direct:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen --method direct)" = "direct:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method agent)" = "agent:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method display-sleep)" = "display-sleep:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method hotkey)" = "hotkey:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen status)" = "$(printf '%s\n' /mock/omcli-lockscreen status)" ]
+[ "$(omcli_main lockscreen doctor)" = "doctor:/mock/omcli-lockscreen" ]
+
+omcli_lockscreen_is_locked() { return 0; }
+[ "$(omcli_main lockscreen lock --method direct)" = "screen is already locked" ]
+omcli_lockscreen_is_locked() { return 1; }
+
+lockscreen_help_output="$(omcli_main lockscreen help)"
+[ "$lockscreen_help_output" = "$(omcli_main lockscreen -h)" ]
+[ "$lockscreen_help_output" = "$(omcli_main lockscreen --help)" ]
+for lockscreen_command_name in lock status doctor auto direct agent display-sleep hotkey; do
+  printf '%s\n' "$lockscreen_help_output" | grep -F "$lockscreen_command_name" >/dev/null
+done
 
 sidecar_help_output="$(omcli_main sidecar)"
 [ "$sidecar_help_output" = "$(omcli_main sidecar help)" ]
@@ -159,7 +181,7 @@ if omcli_main codex >/dev/null 2>&1; then
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
@@ -172,7 +194,32 @@ if omcli_main unknown >/dev/null 2>&1; then
 fi
 
 file bin/omcli-lockscreen | grep -F 'Mach-O' >/dev/null
-otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/login.framework' >/dev/null
+if otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/' >/dev/null; then
+  echo "lockscreen helper links a private framework" >&2
+  exit 1
+fi
 file bin/omcli-sidecar | grep -F 'Mach-O' >/dev/null
+
+# Exercises the read-only path of the helper; the lock itself is never requested.
+lockscreen_status_output="$(bin/omcli-lockscreen status 2>/dev/null)" && lockscreen_status_code=0 || lockscreen_status_code=$?
+case "$lockscreen_status_code" in
+  0)
+    [ "$lockscreen_status_output" = "locked" ] || { echo "lockscreen status reported locked with unexpected output" >&2; exit 1; }
+    ;;
+  1)
+    [ "$lockscreen_status_output" = "unlocked" ] || { echo "lockscreen status reported unlocked with unexpected output" >&2; exit 1; }
+    ;;
+  3)
+    # No console lock state to read in this environment; the helper reported that.
+    ;;
+  *)
+    echo "lockscreen status exited with status $lockscreen_status_code" >&2
+    exit 1
+    ;;
+esac
+
+lockscreen_capabilities_output="$(bin/omcli-lockscreen capabilities)"
+printf '%s\n' "$lockscreen_capabilities_output" | grep -E '^direct\.symbol=(available|unavailable)$' >/dev/null
+printf '%s\n' "$lockscreen_capabilities_output" | grep -E '^hotkey\.accessibility=(authorized|unauthorized)$' >/dev/null
 
 echo "tests passed"

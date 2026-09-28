@@ -4,6 +4,7 @@
 
 ```sh
 omcli lockscreen
+omcli lockscreen status
 omcli ncdu
 omcli ncdu dump
 omcli ncdu read
@@ -26,7 +27,32 @@ brew install oh-my-brew/tap/omcli
 
 ### 锁屏
 
-`omcli lockscreen` 立即锁定 macOS 屏幕。
+```sh
+omcli lockscreen
+omcli lockscreen --method agent
+omcli lockscreen status
+omcli lockscreen doctor
+```
+
+- `omcli lockscreen` 使用 `auto`：图形会话先尝试 `direct`，后台或 SSH 会话先
+  尝试临时 GUI `agent`；未确认锁屏时，仅在密码延迟为“立即”时回退到
+  `display-sleep`。每种方法都会在 3 秒内回读系统锁屏标志，只有确认已锁屏才成功。
+- `omcli lockscreen --method METHOD` 显式选择 `auto`、`direct`、`agent`、
+  `display-sleep` 或 `hotkey`。`hotkey` 使用原生 CoreGraphics 发送 Apple 官方的
+  Control-Command-Q，仅显式调用，不进入 `auto`，且需要辅助功能权限。
+- `omcli lockscreen status` 只读当前状态，输出 `locked` 或 `unlocked`。
+- `omcli lockscreen doctor` 只读当前会话、控制台用户、GUI agent、密码延迟和
+  各原生方法的能力信息，不弹出权限请求。`gui_domain=available` 只表示图形会话
+  存在；是否允许临时载入 agent 仍以真正调用结果为准。
+- 退出码：`0` 已锁屏，`1` 未锁屏，`2` 参数错误，`3` 无法读取锁屏状态或没有
+  可用的锁定机制。`omcli lockscreen` 不再无条件返回成功。
+
+`direct` 在运行时用 `dlopen` 解析 Apple 私有 `login` 框架中的
+`SACLockScreenImmediate`，因此不静态链接私有框架。`agent` 临时将同一动作加载到
+当前控制台用户的 GUI launchd domain，完成或超时后立即 bootout 并删除临时文件；
+异常遗留会在下次调用时恢复。`display-sleep` 使用 `pmset displaysleepnow`，并先
+确认系统配置为显示器关闭后立即要求密码。所有系统调用返回后仍须观察到
+`IOConsoleLocked` 才算成功。
 
 ### ncdu 快照
 
@@ -90,8 +116,9 @@ sh tests/test.sh
 ```
 
 测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备或终止 writer
-进程。路由测试会替换外部执行边界。锁屏和随航辅助程序只会被编译并检查是否
-为 Mach-O，不会运行。
+进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
+确认没有链接私有框架，并执行只读的 `status` 子命令；随航辅助程序只会被编译并
+检查是否为 Mach-O。两者都不会被请求执行真正的动作。
 
 ## 发布
 
