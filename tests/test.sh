@@ -37,14 +37,28 @@ omcli_run() {
 }
 omcli_lockscreen_path() { printf '/mock/omcli-lockscreen\n'; }
 omcli_helper_is_executable() { [ "$1" = /mock/omcli-lockscreen ]; }
-[ "$(omcli_main lockscreen)" = "$(printf '%s\n' /mock/omcli-lockscreen lock)" ]
-[ "$(omcli_main lockscreen lock)" = "$(printf '%s\n' /mock/omcli-lockscreen lock)" ]
+omcli_lockscreen_is_locked() { return 1; }
+omcli_lockscreen_auto() { printf '%s\n' "auto:$1"; }
+omcli_lockscreen_try_method() { printf '%s\n' "$2:$1"; }
+omcli_lockscreen_doctor() { printf '%s\n' "doctor:$1"; }
+[ "$(omcli_main lockscreen)" = "auto:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock)" = "auto:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method direct)" = "direct:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen --method direct)" = "direct:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method agent)" = "agent:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method display-sleep)" = "display-sleep:/mock/omcli-lockscreen" ]
+[ "$(omcli_main lockscreen lock --method hotkey)" = "hotkey:/mock/omcli-lockscreen" ]
 [ "$(omcli_main lockscreen status)" = "$(printf '%s\n' /mock/omcli-lockscreen status)" ]
+[ "$(omcli_main lockscreen doctor)" = "doctor:/mock/omcli-lockscreen" ]
+
+omcli_lockscreen_is_locked() { return 0; }
+[ "$(omcli_main lockscreen lock --method direct)" = "screen is already locked" ]
+omcli_lockscreen_is_locked() { return 1; }
 
 lockscreen_help_output="$(omcli_main lockscreen help)"
 [ "$lockscreen_help_output" = "$(omcli_main lockscreen -h)" ]
 [ "$lockscreen_help_output" = "$(omcli_main lockscreen --help)" ]
-for lockscreen_command_name in lock status; do
+for lockscreen_command_name in lock status doctor auto direct agent display-sleep hotkey; do
   printf '%s\n' "$lockscreen_help_output" | grep -F "$lockscreen_command_name" >/dev/null
 done
 
@@ -167,7 +181,7 @@ if omcli_main codex >/dev/null 2>&1; then
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen status extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
@@ -203,5 +217,9 @@ case "$lockscreen_status_code" in
     exit 1
     ;;
 esac
+
+lockscreen_capabilities_output="$(bin/omcli-lockscreen capabilities)"
+printf '%s\n' "$lockscreen_capabilities_output" | grep -E '^direct\.symbol=(available|unavailable)$' >/dev/null
+printf '%s\n' "$lockscreen_capabilities_output" | grep -E '^hotkey\.accessibility=(authorized|unauthorized)$' >/dev/null
 
 echo "tests passed"
