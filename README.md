@@ -8,6 +8,8 @@ omcli lockscreen status
 omcli ncdu
 omcli ncdu dump
 omcli ncdu read
+omcli ncdu list
+omcli ncdu prune
 omcli sidecar
 omcli sidecar connect
 omcli sidecar disconnect
@@ -57,22 +59,33 @@ omcli lockscreen doctor
 ### ncdu 快照
 
 - `omcli ncdu` 和 `omcli ncdu help` 只显示帮助，不扫描磁盘。
-- `omcli ncdu dump` 扫描启动卷并生成 `~/.ncdu.<时间戳>`。扫描排除
-  `System`、`Volumes` 和 `~/.Trash`，线程数取自当前设备的
-  `sysctl hw.logicalcpu`。
-- `omcli ncdu read [FILE]` 显示指定快照的项目数和占比。省略 `FILE` 时，
-  自动选择数字时间戳最大的 `~/.ncdu.<时间戳>` 文件。
+- `omcli ncdu dump [DIRECTORY]` 扫描指定目录；省略目录时扫描启动卷。只有扫描
+  `/` 时才排除 `System`、`Volumes` 和 `~/.Trash`。线程数取自当前设备的
+  `sysctl hw.logicalcpu`，不使用固定或过量线程数。
+- 快照按规范化目标路径分组，存放在
+  `${XDG_STATE_HOME:-$HOME/.local/state}/omcli/ncdu/<名称>-<路径哈希>/`，文件名为
+  `YYYYMMDD-HHMMSS-NNN.ncdu`。目标目录权限为 `700`，快照使用私有 umask；扫描先
+  写同目录临时文件，成功后再原子重命名。
+- `omcli ncdu read` 打开所有目标中最新的快照；传入目录时打开该目标的最新快照；
+  传入普通文件时打开明确指定的快照。
+- `omcli ncdu list` 按创建时间倒序列出受管快照的时间、大小、目标和完整路径。
+- `omcli ncdu prune` 每个扫描目标分别保留最近3份；`--keep N` 修改保留数量，
+  `--dry-run` 只预览。它只处理符合受管命名规则的快照，不处理其他文件。
 
 示例：
 
 ```sh
 omcli ncdu dump
+omcli ncdu dump ~/Code
 omcli ncdu read
-omcli ncdu read ~/.ncdu.1788940800
+omcli ncdu read ~/Code
+omcli ncdu list
+omcli ncdu prune --dry-run
+omcli ncdu prune --keep 10
 ```
 
-`dump` 会输出快照路径和耗时，不覆盖已有快照。自动选择快照时只接受文件名
-为 `.ncdu.` 加纯数字时间戳的普通文件。
+`dump` 会输出规范化后的扫描目标、快照路径和耗时。同一秒生成多份时递增 `NNN`。
+旧的 `~/.ncdu.<时间戳>` 不会被读取、列出、迁移或清理。
 
 ### 随航（Sidecar）
 
