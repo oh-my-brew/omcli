@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.09.28.1" ]
+[ "$expected_version" = "2026.10.10.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -80,26 +80,60 @@ omcli_helper_is_executable() { [ "$1" = /mock/omcli-sidecar ]; }
 
 omcli_has_ncdu() { return 0; }
 omcli_epoch() { printf '1234567890\n'; }
+omcli_ncdu_timestamp() { printf '20261010-143015\n'; }
 omcli_ncdu_threads() { printf '10\n'; }
 ncdu_test_home="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/omcli-ncdu-test.XXXXXX")"
 trap 'rm -rf "$ncdu_test_home"' EXIT HUP INT TERM
 HOME="$ncdu_test_home"
+XDG_STATE_HOME="$HOME/state with spaces"
 export HOME
+export XDG_STATE_HOME
+mkdir -p "$HOME/Code folder"
+
+omcli_run() {
+  omcli_mock_output=""
+  omcli_mock_previous=""
+  for argument in "$@"; do
+    printf '%s\n' "$argument"
+    if [ "$omcli_mock_previous" = -O ]; then omcli_mock_output="$argument"; fi
+    omcli_mock_previous="$argument"
+  done
+  [ -z "$omcli_mock_output" ] || : > "$omcli_mock_output"
+}
+
 ncdu_help_output="$(omcli_main ncdu)"
 [ "$ncdu_help_output" = "$(omcli_main ncdu help)" ]
 [ "$ncdu_help_output" = "$(omcli_main ncdu -h)" ]
 [ "$ncdu_help_output" = "$(omcli_main ncdu --help)" ]
-for ncdu_command_name in dump read; do
+for ncdu_command_name in dump read list prune; do
   printf '%s\n' "$ncdu_help_output" | grep -F "$ncdu_command_name" >/dev/null
 done
 
+root_target_dir="$(omcli_ncdu_target_dir /)"
+root_snapshot="$root_target_dir/20261010-143015-001.ncdu"
 ncdu_output="$(omcli_main ncdu dump)"
 expected_ncdu_output="$(printf '%s\n' \
-  ncdu -0 -x -t 10 -O "$HOME/.ncdu.1234567890" / \
-  --exclude System --exclude Volumes --exclude "$HOME/.Trash" \
-  "snapshot: $HOME/.ncdu.1234567890" \
-  'expect:90s, actual: 0s')"
+  ncdu -0 -x -t 10 -O "$root_target_dir/.20261010-143015-001.ncdu.partial.$$" \
+  --exclude System --exclude Volumes --exclude "$HOME/.Trash" -- / \
+  'target: /' \
+  "snapshot: $root_snapshot" \
+  'actual: 0s')"
 [ "$ncdu_output" = "$expected_ncdu_output" ]
+[ -f "$root_snapshot" ]
+[ "$(cat "$root_target_dir/target")" = / ]
+
+code_target="$(CDPATH='' cd -- "$HOME/Code folder" && pwd -P)"
+code_target_dir="$(omcli_ncdu_target_dir "$code_target")"
+code_snapshot="$code_target_dir/20261010-143015-001.ncdu"
+ncdu_output="$(omcli_main ncdu dump "$HOME/Code folder")"
+expected_ncdu_output="$(printf '%s\n' \
+  ncdu -0 -x -t 10 -O "$code_target_dir/.20261010-143015-001.ncdu.partial.$$" -- "$code_target" \
+  "target: $code_target" \
+  "snapshot: $code_snapshot" \
+  'actual: 0s')"
+[ "$ncdu_output" = "$expected_ncdu_output" ]
+[ -f "$code_snapshot" ]
+[ "$(cat "$code_target_dir/target")" = "$code_target" ]
 
 explicit_snapshot="$HOME/snapshot with spaces"
 : > "$explicit_snapshot"
@@ -107,12 +141,46 @@ expected_read_output="$(printf '%s\n' \
   ncdu -f "$explicit_snapshot" --show-itemcount --show-percent)"
 [ "$(omcli_main ncdu read "$explicit_snapshot")" = "$expected_read_output" ]
 
-: > "$HOME/.ncdu.2"
-: > "$HOME/.ncdu.10"
-: > "$HOME/.ncdu.not-a-timestamp"
+: > "$code_target_dir/20261010-153015-001.ncdu"
 expected_read_output="$(printf '%s\n' \
-  ncdu -f "$HOME/.ncdu.10" --show-itemcount --show-percent)"
+  ncdu -f "$code_target_dir/20261010-153015-001.ncdu" --show-itemcount --show-percent)"
+[ "$(omcli_main ncdu read "$HOME/Code folder")" = "$expected_read_output" ]
 [ "$(omcli_main ncdu read)" = "$expected_read_output" ]
+
+list_output="$(omcli_main ncdu list)"
+printf '%s\n' "$list_output" | grep -F 'CREATED' >/dev/null
+printf '%s\n' "$list_output" | grep -F "$code_target" >/dev/null
+printf '%s\n' "$list_output" | grep -F "$code_target_dir/20261010-153015-001.ncdu" >/dev/null
+
+# Pruning is per target, ignores unknown files, and defaults to keeping three.
+for stamp in 20261008-100000-001 20261009-100000-001 20261011-100000-001; do
+  : > "$root_target_dir/$stamp.ncdu"
+done
+for stamp in 20261008-110000-001 20261009-110000-001; do
+  : > "$code_target_dir/$stamp.ncdu"
+done
+: > "$root_target_dir/not-managed.ncdu"
+prune_preview="$(omcli_main ncdu prune --dry-run)"
+printf '%s\n' "$prune_preview" | grep -F 'would remove 2 snapshot(s)' >/dev/null
+[ -f "$root_target_dir/20261008-100000-001.ncdu" ]
+[ -f "$code_target_dir/20261008-110000-001.ncdu" ]
+
+prune_output="$(omcli_main ncdu prune)"
+printf '%s\n' "$prune_output" | grep -F 'removed 2 snapshot(s)' >/dev/null
+[ ! -e "$root_target_dir/20261008-100000-001.ncdu" ]
+[ ! -e "$code_target_dir/20261008-110000-001.ncdu" ]
+[ -f "$root_target_dir/not-managed.ncdu" ]
+[ "$(find "$root_target_dir" -type f -name '*.ncdu' ! -name 'not-managed.ncdu' | wc -l | tr -d ' ')" = 3 ]
+[ "$(find "$code_target_dir" -type f -name '*.ncdu' | wc -l | tr -d ' ')" = 3 ]
+printf '%s\n' "$(omcli_main ncdu prune --keep 10)" | grep -F 'removed 0 snapshot(s)' >/dev/null
+if omcli_main ncdu prune --keep 0 >/dev/null 2>&1; then
+  echo "accepted zero ncdu retention" >&2
+  exit 1
+fi
+if omcli_main ncdu prune --keep 00 >/dev/null 2>&1; then
+  echo "accepted zero-padded zero ncdu retention" >&2
+  exit 1
+fi
 
 if omcli_main ncdu read "$HOME/missing" >/dev/null 2>&1; then
   echo "accepted missing ncdu snapshot" >&2
@@ -126,23 +194,26 @@ if omcli_main ncdu help extra >/dev/null 2>&1; then
   echo "accepted too many ncdu help arguments" >&2
   exit 1
 fi
-if omcli_main ncdu dump extra >/dev/null 2>&1; then
-  echo "accepted ncdu dump arguments" >&2
+if omcli_main ncdu dump "$HOME" "$HOME/Code folder" >/dev/null 2>&1; then
+  echo "accepted too many ncdu dump arguments" >&2
+  exit 1
+fi
+if omcli_main ncdu list extra >/dev/null 2>&1; then
+  echo "accepted ncdu list arguments" >&2
   exit 1
 fi
 
-rm -f "$HOME/.ncdu.2" "$HOME/.ncdu.10" "$HOME/.ncdu.not-a-timestamp"
+# Legacy ~/.ncdu.* files are deliberately ignored.
+legacy_state_home="$XDG_STATE_HOME"
+XDG_STATE_HOME="$HOME/empty-state"
+export XDG_STATE_HOME
+: > "$HOME/.ncdu.9999999999"
 if omcli_main ncdu read >/dev/null 2>&1; then
-  echo "read ncdu snapshot when none existed" >&2
+  echo "read a legacy ncdu snapshot" >&2
   exit 1
 fi
-
-: > "$HOME/.ncdu.1234567890"
-if omcli_main ncdu dump >/dev/null 2>&1; then
-  echo "overwrote existing ncdu snapshot" >&2
-  exit 1
-fi
-rm -f "$HOME/.ncdu.1234567890"
+XDG_STATE_HOME="$legacy_state_home"
+export XDG_STATE_HOME
 
 omcli_run() {
   while [ "$#" -gt 0 ]; do
@@ -159,7 +230,10 @@ if omcli_main ncdu dump >/dev/null 2>&1; then
   echo "accepted failed ncdu dump" >&2
   exit 1
 fi
-[ ! -e "$HOME/.ncdu.1234567890" ]
+if find "$root_target_dir" -type f -name '*.partial.*' | grep . >/dev/null; then
+  echo "left an incomplete ncdu snapshot" >&2
+  exit 1
+fi
 
 omcli_run() {
   for argument in "$@"; do printf '%s\n' "$argument"; done
