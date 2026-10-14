@@ -14,7 +14,8 @@ omcli sidecar
 omcli sidecar connect
 omcli sidecar disconnect
 omcli iphone ssh
-omcli codex
+omcli sublime setup
+omcli codex recover
 ```
 
 不带参数运行 `omcli` 只显示帮助，不会修改系统。项目仅支持运行 macOS
@@ -127,15 +128,30 @@ omcli iphone ssh uname -a
 ### active writer 应急恢复
 
 ```sh
-omcli codex
+omcli codex recover
 ```
 
-该命令查找所有正在持有 `~/.codex/thread-writer-locks` 中文件的进程，去重后
+`omcli codex` 和 `omcli codex help` 只显示帮助。`recover` 查找所有正在持有
+`~/.codex/thread-writer-locks` 中文件的进程，去重后
 向它们发送 `SIGTERM`。没有持有进程时直接成功退出，不发送信号。
 
 这是明确出现 `active writer` 或会话占用时的人工应急命令，可能终止 ChatGPT
 Desktop、Codex 或正在生成的响应，不应自动执行，也不能代替正确的多设备连接
 方式。
+
+### Sublime Text 默认关联
+
+```sh
+omcli sublime setup
+```
+
+`omcli sublime` 和 `omcli sublime help` 只显示帮助。`setup` 使用 Apple 公开的
+`NSWorkspace` API，请求把父级 `public.plain-text` 的默认应用设为 Sublime Text。
+macOS 可能显示一次用户确认；命令最多等待 180 秒，并在完成后回读实际默认应用。
+再次运行时，如果父级关联已生效，会直接成功退出。
+
+只设置父级纯文本类型，避免为数十个具体源代码、脚本和配置 UTI 逐项触发确认，
+也不会接管 `.ts` 可能解析到的 MPEG-2 transport stream 等非文本类型。
 
 ## 开发
 
@@ -144,18 +160,19 @@ make build
 sh tests/test.sh
 ```
 
-测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备、连接 iPhone 或终止
-writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
+测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备、连接 iPhone、修改默认
+应用或终止 writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
 确认没有链接私有框架，并执行只读的 `status` 子命令；随航辅助程序只会被编译并
-检查是否为 Mach-O。两者都不会被请求执行真正的动作。
+检查是否为 Mach-O；Sublime helper 只检查应用包和 Mach-O 文件。它们都不会被请求
+执行真正的动作。
 
 ## 发布
 
 修改 `VERSION` 后推送到 `main`。Release workflow 会执行隔离测试，并将
 `omcli-VERSION.tar.gz` 发布到名为 `vVERSION` 的 GitHub Release。发布自动化
 使用 `oh-my-infra/brew-ci`，发布结果位于 `oh-my-brew/omcli`。
-Release 包含 CI 构建的 arm64 `omcli-lockscreen`，Homebrew 安装不要求目标机器
-使用本地 Command Line Tools 重新编译该辅助程序。
+Release 包含 CI 构建的 arm64 原生 helpers，Homebrew 安装不要求目标机器使用本地
+Command Line Tools 重新编译。
 
 手动运行 Release workflow 默认只验证和打包，不发布：`publish=false` 使用
 现有版本运行验证并检查两次打包结果一致，不修改 `VERSION` 或创建 tag/release。
@@ -163,7 +180,7 @@ Release 包含 CI 构建的 arm64 `omcli-lockscreen`，Homebrew 安装不要求�
 
 ## 许可证
 
-omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
+omcli 集成代码、Sublime helper、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
 [SidecarLauncher](https://github.com/Ocasio-J/SidecarLauncher) 修改，其 MIT
 许可证见 [LICENSE-SIDECARLAUNCHER](LICENSE-SIDECARLAUNCHER)。从
 `omzcj/dotfiles` 迁移的 ncdu 封装，以及从 `omzcj/lockscreen` 迁移的锁屏

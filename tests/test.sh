@@ -6,12 +6,14 @@ REPOSITORY_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$REPOSITORY_DIR"
 
 # Only parse source and built scripts. The functional subcommands are never run.
-sh -n src/omcli.sh
+for source_file in src/core.sh src/commands/*.sh src/main.sh; do
+  sh -n "$source_file"
+done
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.10.14.1" ]
-grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
+[ "$expected_version" = "2026.10.15.1" ]
+grep -F 'OMCLI_VERSION="@VERSION@"' src/core.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
   exit 1
@@ -25,7 +27,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu sidecar iphone codex; do
+for command_name in lockscreen ncdu sidecar iphone sublime codex; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -295,18 +297,35 @@ omcli_thread_writer_lock_pids() {
 expected_codex_output="$(printf '%s\n' \
   /bin/kill -TERM 101 202 \
   'sent SIGTERM to Codex thread-writer lock holders: 101 202')"
-[ "$(omcli_main codex)" = "$expected_codex_output" ]
+[ "$(omcli_main codex recover)" = "$expected_codex_output" ]
 
 omcli_thread_writer_lock_pids() { return 0; }
-[ "$(omcli_main codex)" = "no Codex thread-writer lock holders found" ]
+[ "$(omcli_main codex recover)" = "no Codex thread-writer lock holders found" ]
 
 omcli_thread_writer_lock_pids() { printf 'not-a-pid\n'; }
-if omcli_main codex >/dev/null 2>&1; then
+if omcli_main codex recover >/dev/null 2>&1; then
   echo "accepted invalid thread-writer lock holder PID" >&2
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex extra'; do
+codex_help_output="$(omcli_main codex)"
+[ "$codex_help_output" = "$(omcli_main codex help)" ]
+[ "$codex_help_output" = "$(omcli_main codex -h)" ]
+printf '%s\n' "$codex_help_output" | grep -F 'recover' >/dev/null
+
+sublime_help_output="$(omcli_main sublime)"
+[ "$sublime_help_output" = "$(omcli_main sublime help)" ]
+[ "$sublime_help_output" = "$(omcli_main sublime -h)" ]
+printf '%s\n' "$sublime_help_output" | grep -F 'setup' >/dev/null
+omcli_sublime_path() {
+  printf '/mock/omcli-sublime.app/Contents/MacOS/omcli-sublime\n'
+}
+omcli_helper_is_executable() {
+  [ "$1" = /mock/omcli-sublime.app/Contents/MacOS/omcli-sublime ]
+}
+[ "$(omcli_main sublime setup)" = "$(printf '%s\n' /mock/omcli-sublime.app/Contents/MacOS/omcli-sublime setup)" ]
+
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'sublime setup extra' 'sublime unknown' 'codex recover extra' 'codex unknown'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
@@ -324,6 +343,8 @@ if otool -L bin/omcli-lockscreen | grep -F '/System/Library/PrivateFrameworks/' 
   exit 1
 fi
 file bin/omcli-sidecar | grep -F 'Mach-O' >/dev/null
+plutil -lint bin/omcli-sublime.app/Contents/Info.plist >/dev/null
+file bin/omcli-sublime.app/Contents/MacOS/omcli-sublime | grep -F 'Mach-O' >/dev/null
 
 # Exercises the read-only path of the helper; the lock itself is never requested.
 lockscreen_status_output="$(bin/omcli-lockscreen status 2>/dev/null)" && lockscreen_status_code=0 || lockscreen_status_code=$?
