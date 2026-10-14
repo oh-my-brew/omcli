@@ -13,6 +13,7 @@ omcli ncdu prune
 omcli sidecar
 omcli sidecar connect
 omcli sidecar disconnect
+omcli iphone ssh
 omcli codex
 ```
 
@@ -108,6 +109,21 @@ omcli sidecar disconnect [DEVICE]
 包括使用同一 Apple 账户；无线连接还要求开启蓝牙、Wi-Fi 和接力。iPad 锁定或
 休眠时可能可被发现但无法连接。
 
+### iPhone USB SSH
+
+```sh
+omcli iphone ssh
+omcli iphone ssh uname -a
+```
+
+`omcli iphone ssh` 使用 `iproxy` 临时建立 `localhost:2222 -> iPhone:22`
+的 USB 转发，然后通过现有的 `iphone.jb` SSH 配置连接设备。SSH 退出或命令被
+中断时，只终止本次启动的 `iproxy` 并删除临时日志，不安装或启动常驻服务。
+
+本地端口 2222 已被占用、没有连接设备、`iproxy` 提前退出或三秒内没有建立
+转发时，命令会失败并保留原有进程。用户名、密钥及其他 SSH 选项继续由
+`~/.ssh/config` 中的 `iphone.jb` 管理。
+
 ### active writer 应急恢复
 
 ```sh
@@ -128,8 +144,8 @@ make build
 sh tests/test.sh
 ```
 
-测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备或终止 writer
-进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
+测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备、连接 iPhone 或终止
+writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
 确认没有链接私有框架，并执行只读的 `status` 子命令；随航辅助程序只会被编译并
 检查是否为 Mach-O。两者都不会被请求执行真正的动作。
 
@@ -147,7 +163,7 @@ Release 包含 CI 构建的 arm64 `omcli-lockscreen`，Homebrew 安装不要求�
 
 ## 许可证
 
-omcli 集成代码和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
+omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
 [SidecarLauncher](https://github.com/Ocasio-J/SidecarLauncher) 修改，其 MIT
 许可证见 [LICENSE-SIDECARLAUNCHER](LICENSE-SIDECARLAUNCHER)。从
 `omzcj/dotfiles` 迁移的 ncdu 封装，以及从 `omzcj/lockscreen` 迁移的锁屏
