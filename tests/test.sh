@@ -10,7 +10,7 @@ sh -n src/omcli.sh
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.10.10.1" ]
+[ "$expected_version" = "2026.10.14.1" ]
 grep -F 'OMCLI_VERSION="@VERSION@"' src/omcli.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
@@ -25,7 +25,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu sidecar codex; do
+for command_name in lockscreen ncdu sidecar iphone codex; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -235,6 +235,57 @@ if find "$root_target_dir" -type f -name '*.partial.*' | grep . >/dev/null; then
   exit 1
 fi
 
+iphone_help_output="$(omcli_main iphone)"
+[ "$iphone_help_output" = "$(omcli_main iphone help)" ]
+[ "$iphone_help_output" = "$(omcli_main iphone -h)" ]
+[ "$iphone_help_output" = "$(omcli_main iphone --help)" ]
+printf '%s\n' "$iphone_help_output" | grep -F 'localhost:2222 -> iPhone:22' >/dev/null
+
+iphone_test_dir="$HOME/iphone-test"
+mkdir -p "$iphone_test_dir"
+cat > "$iphone_test_dir/iproxy" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" > "$OMCLI_TEST_IPROXY_ARGS"
+printf '%s\n' "$$" > "$OMCLI_TEST_IPROXY_PID"
+trap 'exit 0' HUP INT TERM
+while :; do /bin/sleep 0.1; done
+EOF
+cat > "$iphone_test_dir/ssh" <<'EOF'
+#!/bin/sh
+for argument in "$@"; do printf '%s\n' "$argument"; done
+exit "${OMCLI_TEST_SSH_STATUS:-0}"
+EOF
+chmod +x "$iphone_test_dir/iproxy" "$iphone_test_dir/ssh"
+OMCLI_TEST_IPROXY_ARGS="$iphone_test_dir/iproxy.args"
+OMCLI_TEST_IPROXY_PID="$iphone_test_dir/iproxy.pid"
+OMCLI_TEST_SSH_STATUS=0
+export OMCLI_TEST_IPROXY_ARGS OMCLI_TEST_IPROXY_PID OMCLI_TEST_SSH_STATUS
+omcli_iphone_iproxy_path() { printf '%s\n' "$iphone_test_dir/iproxy"; }
+omcli_iphone_ssh_path() { printf '%s\n' "$iphone_test_dir/ssh"; }
+omcli_iphone_port_ready() { [ -f "$OMCLI_TEST_IPROXY_ARGS" ]; }
+
+rm -f "$OMCLI_TEST_IPROXY_ARGS" "$OMCLI_TEST_IPROXY_PID"
+iphone_output="$(omcli_main iphone ssh uname -a)"
+expected_iphone_output="$(printf '%s\n' \
+  'USB SSH tunnel: localhost:2222 -> iPhone:22' \
+  iphone.jb uname -a)"
+[ "$iphone_output" = "$expected_iphone_output" ]
+[ "$(cat "$OMCLI_TEST_IPROXY_ARGS")" = '2222:22' ]
+iphone_proxy_pid="$(cat "$OMCLI_TEST_IPROXY_PID")"
+if /bin/kill -0 "$iphone_proxy_pid" 2>/dev/null; then
+  echo "left the test iproxy process running" >&2
+  exit 1
+fi
+
+rm -f "$OMCLI_TEST_IPROXY_ARGS" "$OMCLI_TEST_IPROXY_PID"
+OMCLI_TEST_SSH_STATUS=23
+export OMCLI_TEST_SSH_STATUS
+iphone_status=0
+omcli_main iphone ssh >/dev/null 2>&1 || iphone_status=$?
+[ "$iphone_status" -eq 23 ]
+OMCLI_TEST_SSH_STATUS=0
+export OMCLI_TEST_SSH_STATUS
+
 omcli_run() {
   for argument in "$@"; do printf '%s\n' "$argument"; done
 }
@@ -255,7 +306,7 @@ if omcli_main codex >/dev/null 2>&1; then
   exit 1
 fi
 
-for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'codex extra'; do
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
