@@ -12,6 +12,8 @@ Commands:
   sidecar [command]      Connect or disconnect an iPad with Sidecar
   iphone [command]       Connect to an iPhone SSH server over USB
   codex [command]        Recover from Codex thread-writer lock conflicts
+  update [--check]       Check for or install the latest stable release
+  update --reset         Remove the user-level update override
   help                   Show this help
 
 Options:
@@ -22,6 +24,7 @@ Run "omcli ncdu help" for ncdu snapshot commands.
 Run "omcli sidecar help" for Sidecar commands.
 Run "omcli iphone help" for iPhone USB commands.
 Run "omcli codex help" for Codex recovery commands.
+Run "omcli update --help" for self-update commands.
 Run "omcli lockscreen help" for lock screen commands.
 EOF
 }

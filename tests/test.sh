@@ -27,7 +27,7 @@ export OMCLI_SOURCE_ONLY
 
 [ "$(omcli_main --version)" = "omcli $expected_version" ]
 help_output="$(omcli_main)"
-for command_name in lockscreen ncdu sidecar iphone codex; do
+for command_name in lockscreen ncdu sidecar iphone codex update; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
@@ -313,7 +313,50 @@ codex_help_output="$(omcli_main codex)"
 [ "$codex_help_output" = "$(omcli_main codex -h)" ]
 printf '%s\n' "$codex_help_output" | grep -F 'recover' >/dev/null
 
-for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex recover extra' 'codex unknown'; do
+# Self-update tests use a synthetic signed-layout release and never access the
+# network or modify the Homebrew installation.
+[ "$(omcli_version_is_greater 2026.10.16.2 2026.10.16.1 && printf yes)" = yes ]
+[ "$(omcli_version_is_greater 2027.01.01.1 2026.12.31.9 && printf yes)" = yes ]
+if omcli_version_is_greater 2026.10.16.1 2026.10.16.1; then
+  echo "treated equal versions as newer" >&2
+  exit 1
+fi
+if omcli_version_is_valid 2026.10.16; then
+  echo "accepted a three-part update version" >&2
+  exit 1
+fi
+
+update_test_version=2099.01.02.3
+update_fixture="$HOME/update-fixture"
+update_payload="$update_fixture/omcli-$update_test_version"
+mkdir -p "$update_payload/bin"
+sed "s/OMCLI_VERSION=\"$expected_version\"/OMCLI_VERSION=\"$update_test_version\"/" \
+  bin/omcli > "$update_payload/bin/omcli"
+cp bin/omcli-lockscreen bin/omcli-sidecar "$update_payload/bin/"
+printf '%s\n' "$update_test_version" > "$update_payload/VERSION"
+chmod +x "$update_payload/bin/"*
+(
+  cd "$update_fixture"
+  tar -czf "omcli-$update_test_version.tar.gz" "omcli-$update_test_version"
+  shasum -a 256 "omcli-$update_test_version.tar.gz" > \
+    "omcli-$update_test_version.tar.gz.sha256"
+)
+omcli_update_latest_version() { printf '%s\n' "$update_test_version"; }
+omcli_update_fetch_release() {
+  cp "$update_fixture/omcli-$update_test_version.tar.gz" "$2/"
+  cp "$update_fixture/omcli-$update_test_version.tar.gz.sha256" "$2/"
+}
+[ "$(omcli_main update --check)" = "update available: $expected_version -> $update_test_version" ]
+printf '%s\n' "$(omcli_main update)" | grep -F "updated omcli to $update_test_version" >/dev/null
+[ -L "$(omcli_update_root)/current" ]
+[ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli --version)" = "omcli $update_test_version" ]
+[ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 OMCLI_USE_BUNDLED=1 bin/omcli --version)" = "omcli $expected_version" ]
+printf '%s\n' "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli update --reset)" | \
+  grep -F 'removed user-level omcli updates' >/dev/null
+[ ! -e "$(omcli_update_root)/current" ]
+[ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli --version)" = "omcli $expected_version" ]
+
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex recover extra' 'codex unknown' 'update bogus' 'update --check extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2
