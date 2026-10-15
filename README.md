@@ -14,7 +14,6 @@ omcli sidecar
 omcli sidecar connect
 omcli sidecar disconnect
 omcli iphone ssh
-omcli sublime setup
 omcli codex recover
 ```
 
@@ -139,20 +138,6 @@ omcli codex recover
 Desktop、Codex 或正在生成的响应，不应自动执行，也不能代替正确的多设备连接
 方式。
 
-### Sublime Text 默认关联
-
-```sh
-omcli sublime setup
-```
-
-`omcli sublime` 和 `omcli sublime help` 只显示帮助。`setup` 使用 Apple 公开的
-`NSWorkspace` API，请求把父级 `public.plain-text` 的默认应用设为 Sublime Text。
-macOS 可能显示一次用户确认；命令最多等待 180 秒，并在完成后回读实际默认应用。
-再次运行时，如果父级关联已生效，会直接成功退出。
-
-只设置父级纯文本类型，避免为数十个具体源代码、脚本和配置 UTI 逐项触发确认，
-也不会接管 `.ts` 可能解析到的 MPEG-2 transport stream 等非文本类型。
-
 ## 开发
 
 ```sh
@@ -160,11 +145,10 @@ make build
 sh tests/test.sh
 ```
 
-测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备、连接 iPhone、修改默认
-应用或终止 writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
+测试不会真实锁屏、扫描磁盘、打开 ncdu 界面、连接随航设备、连接 iPhone 或终止
+writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只会被编译、检查是否为 Mach-O、
 确认没有链接私有框架，并执行只读的 `status` 子命令；随航辅助程序只会被编译并
-检查是否为 Mach-O；Sublime helper 只检查应用包和 Mach-O 文件。它们都不会被请求
-执行真正的动作。
+检查是否为 Mach-O。两者都不会被请求执行真正的动作。
 
 ## 发布
 
@@ -180,7 +164,7 @@ Command Line Tools 重新编译。
 
 ## 许可证
 
-omcli 集成代码、Sublime helper、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
+omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)。随航 helper 基于
 [SidecarLauncher](https://github.com/Ocasio-J/SidecarLauncher) 修改，其 MIT
 许可证见 [LICENSE-SIDECARLAUNCHER](LICENSE-SIDECARLAUNCHER)。从
 `omzcj/dotfiles` 迁移的 ncdu 封装，以及从 `omzcj/lockscreen` 迁移的锁屏
