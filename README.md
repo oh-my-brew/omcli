@@ -152,7 +152,8 @@ writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只�
 
 ## 发布
 
-修改 `VERSION` 后推送到 `main`。Release workflow 会执行隔离测试，并将
+功能代码进入 `main` 后不会直接发布；由独立 Release subagent 创建只更新版本的发行 PR。
+修改 `VERSION` 并合并到 `main` 后，Release workflow 会执行隔离测试，并将
 `omcli-VERSION.tar.gz` 发布到名为 `vVERSION` 的 GitHub Release。发布自动化
 使用 `oh-my-infra/brew-ci`，发布结果位于 `oh-my-brew/omcli`。
 Release 包含 CI 构建的 arm64 原生 helpers，Homebrew 安装不要求目标机器使用本地
@@ -160,7 +161,10 @@ Command Line Tools 重新编译。
 
 手动运行 Release workflow 默认只验证和打包，不发布：`publish=false` 使用
 现有版本运行验证并检查两次打包结果一致，不修改 `VERSION` 或创建 tag/release。
-显式选择 `publish=true` 才会发布；现有 main 源码 push 仍按原规则自动发布。
+显式选择 `publish=true` 才会发布；普通源码 push 不发布，只有 `VERSION` 进入 `main`
+才自动启动正式发行。
+
+完整的产品发行与 Homebrew 交接规则见 [RELEASING.md](RELEASING.md)。
 
 ## 许可证
 
