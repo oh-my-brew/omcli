@@ -15,10 +15,12 @@ omcli_main() {
     sidecar) omcli_sidecar "$@" ;;
     iphone) omcli_iphone "$@" ;;
     codex) omcli_codex "$@" ;;
+    update) omcli_update "$@" ;;
     *) omcli_usage >&2; omcli_fail "unknown command: $omcli_command" ;;
   esac
 }
 
 if [ "${OMCLI_SOURCE_ONLY:-0}" != "1" ]; then
+  omcli_maybe_delegate "$@"
   omcli_main "$@"
 fi

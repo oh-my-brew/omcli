@@ -15,6 +15,8 @@ omcli sidecar connect
 omcli sidecar disconnect
 omcli iphone ssh
 omcli codex recover
+omcli update --check
+omcli update
 ```
 
 不带参数运行 `omcli` 只显示帮助，不会修改系统。项目仅支持运行 macOS
@@ -164,7 +166,16 @@ Command Line Tools 重新编译。
 显式选择 `publish=true` 才会发布；普通源码 push 不发布，只有 `VERSION` 进入 `main`
 才自动启动正式发行。
 
-完整的产品发行与 Homebrew 交接规则见 [RELEASING.md](RELEASING.md)。
+完整的产品发行及其与 Homebrew 的边界见 [RELEASING.md](RELEASING.md)。
+
+## 自更新
+
+`omcli update --check` 只检查最新稳定 Release；`omcli update` 校验 SHA-256、归档路径、
+版本和原生 helpers 后，将新版本原子切换到 `~/.local/share/omcli/current`。Homebrew Cellar
+保持不变，之后执行 Homebrew 安装的 `omcli` 会自动委派给较新的用户级版本。
+
+`omcli update --reset` 删除用户级覆盖并恢复使用 Homebrew 版本。临时设置
+`OMCLI_USE_BUNDLED=1` 可对单次命令绕过用户级版本。更新目录只保留当前版本和前一个版本。
 
 ## 许可证
 
