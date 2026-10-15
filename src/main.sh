@@ -14,7 +14,6 @@ omcli_main() {
     ncdu) omcli_ncdu "$@" ;;
     sidecar) omcli_sidecar "$@" ;;
     iphone) omcli_iphone "$@" ;;
-    sublime) omcli_sublime "$@" ;;
     codex) omcli_codex "$@" ;;
     *) omcli_usage >&2; omcli_fail "unknown command: $omcli_command" ;;
   esac

@@ -11,7 +11,6 @@ Commands:
   ncdu [command]         Create or read ncdu snapshots
   sidecar [command]      Connect or disconnect an iPad with Sidecar
   iphone [command]       Connect to an iPhone SSH server over USB
-  sublime [command]      Configure Sublime Text as the plain-text editor
   codex [command]        Recover from Codex thread-writer lock conflicts
   help                   Show this help
 
@@ -22,7 +21,6 @@ Options:
 Run "omcli ncdu help" for ncdu snapshot commands.
 Run "omcli sidecar help" for Sidecar commands.
 Run "omcli iphone help" for iPhone USB commands.
-Run "omcli sublime help" for Sublime Text setup.
 Run "omcli codex help" for Codex recovery commands.
 Run "omcli lockscreen help" for lock screen commands.
 EOF
