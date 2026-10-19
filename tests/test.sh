@@ -341,22 +341,36 @@ chmod +x "$update_payload/bin/"*
   shasum -a 256 "omcli-$update_test_version.tar.gz" > \
     "omcli-$update_test_version.tar.gz.sha256"
 )
-omcli_update_latest_version() { printf '%s\n' "$update_test_version"; }
+omcli_update_latest_stable() { printf '%s\n%s\n' "$update_test_version" "v$update_test_version"; }
 omcli_update_fetch_release() {
-  cp "$update_fixture/omcli-$update_test_version.tar.gz" "$2/"
-  cp "$update_fixture/omcli-$update_test_version.tar.gz.sha256" "$2/"
+  cp "$update_fixture/omcli-$update_test_version.tar.gz" "$3/"
+  cp "$update_fixture/omcli-$update_test_version.tar.gz.sha256" "$3/"
 }
-[ "$(omcli_main update --check)" = "update available: $expected_version -> $update_test_version" ]
-printf '%s\n' "$(omcli_main update)" | grep -F "updated omcli to $update_test_version" >/dev/null
+[ "$(omcli_main update --check)" = "update available: $expected_version -> $update_test_version (v$update_test_version)" ]
+printf '%s\n' "$(omcli_main update)" | grep -F "updated omcli to $update_test_version (v$update_test_version)" >/dev/null
 [ -L "$(omcli_update_root)/current" ]
+[ "$(cat "$(omcli_update_root)/current/.release-tag")" = "v$update_test_version" ]
 [ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli --version)" = "omcli $update_test_version" ]
 [ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 OMCLI_USE_BUNDLED=1 bin/omcli --version)" = "omcli $expected_version" ]
+
+# A newer beta counter for the same future stable version remains detectable.
+omcli_update_latest_beta() { printf '%s\n%s\n' "$update_test_version" "v$update_test_version-beta.2"; }
+[ "$(omcli_main update --check-beta)" = "update available: $expected_version -> $update_test_version (v$update_test_version-beta.2)" ]
+printf '%s\n' "$(omcli_main update --beta)" | grep -F "updated omcli to $update_test_version (v$update_test_version-beta.2)" >/dev/null
+[ "$(cat "$(omcli_update_root)/current/.release-tag")" = "v$update_test_version-beta.2" ]
+# Once the same payload version is promoted, stable update switches the channel
+# marker and target without treating the beta marker as already stable.
+OMCLI_VERSION="$update_test_version"
+[ "$(omcli_main update --check)" = "update available: $update_test_version -> $update_test_version (v$update_test_version)" ]
+printf '%s\n' "$(omcli_main update)" | grep -F "updated omcli to $update_test_version (v$update_test_version)" >/dev/null
+[ "$(cat "$(omcli_update_root)/current/.release-tag")" = "v$update_test_version" ]
+OMCLI_VERSION="$expected_version"
 printf '%s\n' "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli update --reset)" | \
   grep -F 'removed user-level omcli updates' >/dev/null
 [ ! -e "$(omcli_update_root)/current" ]
 [ "$(HOME="$HOME" OMCLI_SOURCE_ONLY=0 bin/omcli --version)" = "omcli $expected_version" ]
 
-for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex recover extra' 'codex unknown' 'update bogus' 'update --check extra'; do
+for rejected in 'lockscreen extra' 'lockscreen bogus' 'lockscreen lock direct' 'lockscreen lock --method' 'lockscreen lock --method bogus' 'lockscreen lock --method direct extra' 'lockscreen status extra' 'lockscreen doctor extra' 'lockscreen help extra' 'ncdu unknown' 'sidecar list extra' 'sidecar connect one two' 'sidecar disconnect one two' 'iphone help extra' 'iphone unknown' 'codex recover extra' 'codex unknown' 'update bogus' 'update --check extra' 'update --beta extra'; do
   set -- $rejected
   if omcli_main "$@" >/dev/null 2>&1; then
     echo "accepted unexpected arguments: $rejected" >&2

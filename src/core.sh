@@ -13,6 +13,7 @@ Commands:
   iphone [command]       Connect to an iPhone SSH server over USB
   codex [command]        Recover from Codex thread-writer lock conflicts
   update [--check]       Check for or install the latest stable release
+  update --beta          Install the latest published beta candidate
   update --reset         Remove the user-level update override
   help                   Show this help
 
