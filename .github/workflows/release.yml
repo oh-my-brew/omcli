@@ -1,16 +1,16 @@
-name: Release
+name: Promote approved beta
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - VERSION
   workflow_dispatch:
     inputs:
-      publish:
-        description: Publish a new release instead of verifying only
-        type: boolean
-        default: false
+      beta_tag:
+        description: Exact user-approved vVERSION-beta.N tag
+        required: true
+        type: string
+      expected_sha256:
+        description: Exact SHA-256 approved together with the beta tag
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -20,21 +20,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    uses: oh-my-infra/brew-ci/.github/workflows/source-release.yml@32680467a1ce87d778153ed08c38bd2577395c16
+  promote:
+    uses: oh-my-infra/brew-ci/.github/workflows/promote-source-beta.yml@015379454d65f55637215ecedc19ad0bdd91a9c9
     with:
-      publish: ${{ github.event_name == 'push' || inputs.publish == true }}
+      automation-ref: 015379454d65f55637215ecedc19ad0bdd91a9c9
+      beta-tag: ${{ inputs.beta_tag }}
+      expected-sha256: ${{ inputs.expected_sha256 }}
       runner: macos-26
       project-name: omcli
-      validate-command: make build && sh tests/test.sh
-      package-paths: |
-        VERSION
-        bin
-        LICENSE
-        LICENSE-APACHE
-        LICENSE-SIDECARLAUNCHER
-        NOTICE
-        README.md
-        Makefile
-        src
-        tests

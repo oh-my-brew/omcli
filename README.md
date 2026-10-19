@@ -17,6 +17,7 @@ omcli iphone ssh
 omcli codex recover
 omcli update --check
 omcli update
+omcli update --beta
 ```
 
 不带参数运行 `omcli` 只显示帮助，不会修改系统。项目仅支持运行 macOS
@@ -154,17 +155,16 @@ writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只�
 
 ## 发布
 
-功能代码进入 `main` 后不会直接发布；由独立 Release subagent 创建只更新版本的发行 PR。
-修改 `VERSION` 并合并到 `main` 后，Release workflow 会执行隔离测试，并将
-`omcli-VERSION.tar.gz` 发布到名为 `vVERSION` 的 GitHub Release。发布自动化
-使用 `oh-my-infra/brew-ci`，发布结果位于 `oh-my-brew/omcli`。
+功能代码进入 `main` 且源码 CI 通过后，主会话启动独立 Beta Release subagent 后即可继续响应。
+subagent 在独立 worktree 中创建版本候选和 PR，并从固定 commit 生成
+`vVERSION-beta.N` prerelease。用户确认候选后，另一个 Promote subagent 校验并将
+完全相同的 tar.gz 与 SHA 提升为 `vVERSION` 正式 Release，不重新打包。
 Release 包含 CI 构建的 arm64 原生 helpers，Homebrew 安装不要求目标机器使用本地
 Command Line Tools 重新编译。
 
-手动运行 Release workflow 默认只验证和打包，不发布：`publish=false` 使用
-现有版本运行验证并检查两次打包结果一致，不修改 `VERSION` 或创建 tag/release。
-显式选择 `publish=true` 才会发布；普通源码 push 不发布，只有 `VERSION` 进入 `main`
-才自动启动正式发行。
+beta 失败不会自动提升，正式提升必须由用户明确批准具体 beta tag 及其 SHA-256。
+Promote 会以 GitHub 远端默认分支的准确 HEAD 验证候选已合入，并要求候选校验文件、
+资产实际摘要和批准值三者一致。发布过程不发送飞书通知。
 
 完整的产品发行及其与 Homebrew 的边界见 [RELEASING.md](RELEASING.md)。
 
@@ -173,6 +173,11 @@ Command Line Tools 重新编译。
 `omcli update --check` 只检查最新稳定 Release；`omcli update` 校验 SHA-256、归档路径、
 版本和原生 helpers 后，将新版本原子切换到 `~/.local/share/omcli/current`。Homebrew Cellar
 保持不变，之后执行 Homebrew 安装的 `omcli` 会自动委派给较新的用户级版本。
+
+`omcli update --beta` 安装最新的 prerelease 候选，`--check-beta` 只检查。候选 tag
+单独记录，因此同一正式版本号的 `beta.1`、`beta.2` 仍能依次更新。普通
+`omcli update`、GitHub latest 和 Homebrew 不读取 beta；正式版发布后，普通更新会把
+同版本 beta 切回稳定通道。
 
 `omcli update --reset` 删除用户级覆盖并恢复使用 Homebrew 版本。临时设置
 `OMCLI_USE_BUNDLED=1` 可对单次命令绕过用户级版本。更新目录只保留当前版本和前一个版本。

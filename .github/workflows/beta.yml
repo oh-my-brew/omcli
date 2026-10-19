@@ -1,0 +1,42 @@
+name: Beta candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact 40-character candidate commit prepared by the Beta Release subagent
+        required: true
+        type: string
+      beta_number:
+        description: Positive beta counter for the VERSION in source_ref
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beta-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  beta:
+    uses: oh-my-infra/brew-ci/.github/workflows/source-beta.yml@015379454d65f55637215ecedc19ad0bdd91a9c9
+    with:
+      automation-ref: 015379454d65f55637215ecedc19ad0bdd91a9c9
+      source-ref: ${{ inputs.source_ref }}
+      beta-number: ${{ inputs.beta_number }}
+      runner: macos-26
+      project-name: omcli
+      validate-command: make build && sh tests/test.sh
+      package-paths: |
+        VERSION
+        bin
+        LICENSE
+        LICENSE-APACHE
+        LICENSE-SIDECARLAUNCHER
+        NOTICE
+        README.md
+        Makefile
+        src
+        tests
