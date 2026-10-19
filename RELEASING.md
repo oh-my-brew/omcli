@@ -31,6 +31,11 @@ latest 和 Homebrew 仍只读取稳定 Release。
 
 任何失败都不得自动提升。版本冲突、候选 commit 未进入 `main`、摘要不一致或资产结构异常时停止并报告。
 
+`v2026.10.19.1-beta.1` 的 tag 错误指向
+`8a957c3409675b2e9484e9003236ac85e50b66b8`，而打包的候选 commit 是
+`85a82223426e0d3c14d76bea3d06b3a5d6c5348a`。该候选保留作为审计记录，Promote
+workflow 会明确拒绝它；不得删除、移动或提升此 tag。
+
 ## Homebrew 解耦
 
 产品 Release 不触发或等待 Homebrew Tap。Tap 每日定时发现新版本并创建升级 PR；Bottle、PR 合并和 Homebrew 升级由独立维护流程处理。
@@ -39,7 +44,7 @@ latest 和 Homebrew 仍只读取稳定 Release。
 
 包含 `source-beta.yml` 与 `promote-source-beta.yml` 的 brew-ci 改动已经合入默认分支；
 omcli 两个 workflow 固定到该合入 commit 的完整 40 位 SHA
-`015379454d65f55637215ecedc19ad0bdd91a9c9`。后续升级共享流程时必须同时更新两处，
+`6e26fbaf6abe40fa277497a0b68d44c90ee02297`。后续升级共享流程时必须同时更新两处，
 不能改用 `main` 或 tag 等移动引用。
 
 最终交付应包含源码 commit、版本 PR、beta tag、正式 tag、两个 Release、相同资产 SHA、隔离测试，以及未做的功能测试。
