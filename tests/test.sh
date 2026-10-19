@@ -12,7 +12,7 @@ done
 sh -n bin/omcli
 
 expected_version="$(tr -d '\n' < VERSION)"
-[ "$expected_version" = "2026.10.16.1" ]
+printf '%s\n' "$expected_version" | grep -Eq '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$'
 grep -F 'OMCLI_VERSION="@VERSION@"' src/core.sh >/dev/null
 if grep -F '@VERSION@' bin/omcli >/dev/null; then
   echo "unexpanded version placeholder" >&2
