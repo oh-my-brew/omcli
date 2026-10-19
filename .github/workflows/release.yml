@@ -20,10 +20,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-candidate:
+    runs-on: macos-26
+    steps:
+      - name: Reject invalidated candidates
+        env:
+          BETA_TAG: ${{ inputs.beta_tag }}
+        run: |
+          if [[ "$BETA_TAG" == v2026.10.19.1-beta.1 ]]; then
+            echo "$BETA_TAG was invalidated because its tag targeted the wrong source commit." >&2
+            exit 1
+          fi
+
   promote:
-    uses: oh-my-infra/brew-ci/.github/workflows/promote-source-beta.yml@015379454d65f55637215ecedc19ad0bdd91a9c9
+    needs: validate-candidate
+    uses: oh-my-infra/brew-ci/.github/workflows/promote-source-beta.yml@6e26fbaf6abe40fa277497a0b68d44c90ee02297
     with:
-      automation-ref: 015379454d65f55637215ecedc19ad0bdd91a9c9
+      automation-ref: 6e26fbaf6abe40fa277497a0b68d44c90ee02297
       beta-tag: ${{ inputs.beta_tag }}
       expected-sha256: ${{ inputs.expected_sha256 }}
       runner: macos-26

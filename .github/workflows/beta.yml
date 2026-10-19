@@ -21,9 +21,9 @@ concurrency:
 
 jobs:
   beta:
-    uses: oh-my-infra/brew-ci/.github/workflows/source-beta.yml@015379454d65f55637215ecedc19ad0bdd91a9c9
+    uses: oh-my-infra/brew-ci/.github/workflows/source-beta.yml@6e26fbaf6abe40fa277497a0b68d44c90ee02297
     with:
-      automation-ref: 015379454d65f55637215ecedc19ad0bdd91a9c9
+      automation-ref: 6e26fbaf6abe40fa277497a0b68d44c90ee02297
       source-ref: ${{ inputs.source_ref }}
       beta-number: ${{ inputs.beta_number }}
       runner: macos-26
