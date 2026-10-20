@@ -31,6 +31,25 @@ for command_name in lockscreen ncdu sidecar iphone codex update; do
   printf '%s\n' "$help_output" | grep -F "$command_name" >/dev/null
 done
 
+# Native helpers are packaged beside the executable in both supported layouts:
+# Homebrew uses libexec, while user-level updates use bin.
+[ "$(
+  omcli_resolve_self() { printf '/mock/homebrew/libexec/omcli\n'; }
+  omcli_lockscreen_path
+)" = /mock/homebrew/libexec/omcli-lockscreen ]
+[ "$(
+  omcli_resolve_self() { printf '/mock/update/bin/omcli\n'; }
+  omcli_lockscreen_path
+)" = /mock/update/bin/omcli-lockscreen ]
+[ "$(
+  omcli_resolve_self() { printf '/mock/homebrew/libexec/omcli\n'; }
+  omcli_sidecar_path
+)" = /mock/homebrew/libexec/omcli-sidecar ]
+[ "$(
+  omcli_resolve_self() { printf '/mock/update/bin/omcli\n'; }
+  omcli_sidecar_path
+)" = /mock/update/bin/omcli-sidecar ]
+
 omcli_external() {
   for argument in "$@"; do printf '%s\n' "$argument"; done
 }
