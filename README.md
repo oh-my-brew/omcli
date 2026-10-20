@@ -172,7 +172,8 @@ Promote 会以 GitHub 远端默认分支的准确 HEAD 验证候选已合入，�
 
 `omcli update --check` 只检查最新稳定 Release；`omcli update` 校验 SHA-256、归档路径、
 版本和原生 helpers 后，将新版本原子切换到 `~/.local/share/omcli/current`。Homebrew Cellar
-保持不变，之后执行 Homebrew 安装的 `omcli` 会自动委派给较新的用户级版本。
+保持不变，之后执行 Homebrew 安装的 `omcli` 会自动委派给较新的用户级版本。主程序会从
+自身所在目录加载原生 helpers，兼容 Homebrew 的 `libexec` 和用户级更新的 `bin` 布局。
 
 `omcli update --beta` 安装最新的 prerelease 候选，`--check-beta` 只检查。候选 tag
 单独记录，因此同一正式版本号的 `beta.1`、`beta.2` 仍能依次更新。普通

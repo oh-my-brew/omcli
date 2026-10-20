@@ -1,7 +1,7 @@
 omcli_lockscreen_path() {
   omcli_self="$(omcli_resolve_self "$0")" || omcli_fail "cannot resolve executable path" || return
   omcli_bin_dir="$(dirname -- "$omcli_self")"
-  printf '%s/../libexec/omcli-lockscreen\n' "$omcli_bin_dir"
+  printf '%s/omcli-lockscreen\n' "$omcli_bin_dir"
 }
 
 omcli_helper_is_executable() {
