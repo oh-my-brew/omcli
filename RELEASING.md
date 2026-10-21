@@ -23,7 +23,7 @@ latest 和 Homebrew 仍只读取稳定 Release。
 用户明确批准具体 beta tag 及其 SHA-256 后才开始：
 
 1. 使用新的独立 worktree，锁定用户批准的 beta tag 和 SHA-256，不以“最新 beta”或重新读取出的摘要替代用户批准值。
-2. 使用保留候选 commit 的 merge commit 方式合入版本 PR；不 squash 或 rebase。
+2. 保留用户批准的候选 commit，优先以普通非强推 fast-forward 将它送入远端默认分支；不得关闭或绕过分支保护，也不 squash 或 rebase 已批准候选。写入前重新读取远端默认分支、版本 PR、所需 CI 和保护规则，确认候选尚未被取代、批准的 tag/commit/SHA 未变，且默认分支 HEAD 是候选的祖先；当前单一版本提交通常要求 HEAD 正好是候选父提交。在独立 worktree 中执行 `git push origin <完整候选 SHA>:refs/heads/<默认分支>`，不使用 `--force`。若远端已包含候选则只核验，不重复推进；分叉、并发更新、保护规则拒绝或其他校验失败时停止并重新读取，不自动改规则、换候选或重新打包。推送后回读默认分支包含原候选，并确认版本 PR 已合并后再提升。
 3. 运行 Promote workflow。它从 GitHub API 获取默认分支、显式 fetch 准确的远端 HEAD，确认候选 commit 是该 HEAD 的祖先、候选仍为 prerelease，且不存在同版本稳定 Release。
 4. 下载候选 tar.gz 和 SHA，验证实际摘要同时匹配候选校验文件与用户批准值，并验证路径、链接、内嵌 `VERSION` 与候选 commit。
 5. 将同一份资产附加到 `vVERSION` 正式 Release；不重新构建或打包。

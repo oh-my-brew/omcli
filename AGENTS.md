@@ -21,6 +21,7 @@
 - beta 不自动成为正式版。只有用户明确指出批准的 beta tag 及对应 SHA-256 后，主会话才新建独立 Promote subagent；主会话同样不等待其执行。
 - Promote subagent 必须从 GitHub API 读取默认分支、拉取准确的远端 HEAD，并验证版本 PR 已合入、候选 commit 是该 HEAD 的祖先、候选仍为 prerelease、实际 SHA-256 同时匹配候选校验文件和用户批准值、归档结构有效，然后复用用户批准的同一份 tar.gz 和校验文件创建稳定 Release。
 - 不重新打包，不允许用另一个候选替代用户批准的 tag；失败后停止，不自动改发新版本。
+- 候选合入优先使用保留原 SHA 的普通非强推 fast-forward；依 `RELEASING.md` 复核远端、批准及 CI 后执行并回读。不得为发行关闭或绕过分支保护；分叉、并发变化或保护拒绝时停止，不 squash/rebase 已批准候选。
 
 ## Homebrew 解耦
 
