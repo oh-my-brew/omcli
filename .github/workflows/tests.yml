@@ -11,4 +11,4 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - run: make build && sh tests/test.sh
+      - run: make -j3 build && sh tests/test.sh

@@ -58,7 +58,7 @@ jobs:
       - name: Candidate tests in parallel with packaging
         id: tests
         run: |
-          make build
+          make -j3 build
           sh tests/test.sh
       - name: Report exact candidate result for branch protection
         if: always()
@@ -119,7 +119,7 @@ jobs:
         if: steps.existing.outputs.reused != 'true'
         run: |
           set -euo pipefail
-          make build
+          make -j3 build
           python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
             --output "dist/omcli-$VERSION.tar.gz" VERSION bin LICENSE LICENSE-APACHE LICENSE-SIDECARLAUNCHER NOTICE README.md Makefile src tests
           python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
