@@ -58,7 +58,7 @@ jobs:
       - name: Candidate tests in parallel with packaging
         id: tests
         run: |
-          make build
+          make -j3 build
           sh tests/test.sh
       - name: Report exact candidate result for branch protection
         if: always()
@@ -75,26 +75,13 @@ jobs:
 
   security:
     needs: prepare
-    runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
       security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [actions]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ needs.prepare.outputs.candidate }}
-          persist-credentials: false
-      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
-        with:
-          languages: ${{ matrix.language }}
-      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
-        with:
-          category: fast-candidate-${{ matrix.language }}
+    uses: ./.github/workflows/codeql.yml
+    with:
+      source_ref: ${{ needs.prepare.outputs.candidate }}
 
   package:
     needs: prepare
@@ -132,7 +119,7 @@ jobs:
         if: steps.existing.outputs.reused != 'true'
         run: |
           set -euo pipefail
-          make build
+          make -j3 build
           python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
             --output "dist/omcli-$VERSION.tar.gz" VERSION bin LICENSE LICENSE-APACHE LICENSE-SIDECARLAUNCHER NOTICE README.md Makefile src tests
           python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
