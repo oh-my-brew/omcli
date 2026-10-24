@@ -155,18 +155,12 @@ writer 进程。路由测试会替换外部执行边界。锁屏辅助程序只�
 
 ## 发布
 
-功能代码进入 `main` 且源码 CI 通过后，主会话复用或创建一个发布代理后即可继续响应。
-subagent 在独立 worktree 中创建版本候选和 PR，并从固定 commit 生成
-`vVERSION-beta.N` prerelease。用户确认候选后，发布代理校验并将
-完全相同的 tar.gz 与 SHA 提升为 `vVERSION` 正式 Release，不重新打包。
-Release 包含 CI 构建的 arm64 原生 helpers，Homebrew 安装不要求目标机器使用本地
-Command Line Tools 重新编译。
+开发完成后从固定源码提交请求独立候选，构建与质量检查并行。Beta 包就绪后即可安装体验；
+必需检查通过后自动将同一 tar.gz 和 SHA-256 提升为正式 Release，不等待人工批准、不重新打包。
+过期候选不能提升。Release 包含 arm64 原生 helpers，安装时无需本地重新编译。
 
-beta 失败不会自动提升，正式提升必须由用户明确批准具体 beta tag 及其 SHA-256。
-Promote 会以 GitHub 远端默认分支的准确 HEAD 验证候选已合入，并要求候选校验文件、
-资产实际摘要和批准值三者一致。发布代理按发行文档保存回执并主动回传结果，交接后关闭；发布过程不发送飞书通知。
-
-完整的产品发行及其与 Homebrew 的边界见 [RELEASING.md](RELEASING.md)。
+发行入口、候选身份、重试和 Homebrew 边界见 [RELEASING.md](RELEASING.md)。
+文档维护不自动发版；真实系统行为仍由用户体验确认。
 
 ## 自更新
 
@@ -197,5 +191,3 @@ omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)�
 助手开发与验证边界见 [AGENTS.md](AGENTS.md)，发行与回执协议见
 [RELEASING.md](RELEASING.md)。项目具体决定跟随这些仓库文档维护，
 交接说明实际提交、检查与未完成项，不依赖其他项目会话的历史上下文。
-
-发行采用快速 Beta 与并行 CI；检查通过后自动提升同一制品，不等待人工批准。开发入口和异常恢复见 [RELEASING.md](RELEASING.md)。
