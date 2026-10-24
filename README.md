@@ -197,3 +197,5 @@ omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)�
 助手开发与验证边界见 [AGENTS.md](AGENTS.md)，发行与回执协议见
 [RELEASING.md](RELEASING.md)。项目具体决定跟随这些仓库文档维护，
 交接说明实际提交、检查与未完成项，不依赖其他项目会话的历史上下文。
+
+发行采用快速 Beta 与并行 CI；检查通过后自动提升同一制品，不等待人工批准。开发入口和异常恢复见 [RELEASING.md](RELEASING.md)。
