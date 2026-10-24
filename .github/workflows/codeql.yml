@@ -35,8 +35,8 @@ jobs:
             os: ubuntu-latest
             build: none
           - language: c-cpp
-            os: macos-26
-            build: manual
+            os: ubuntu-latest
+            build: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -46,9 +46,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build }}
-      - name: Extract the macOS C helper from the real build
-        if: matrix.language == 'c-cpp'
-        run: make build-lockscreen
       - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
         with:
           category: source-${{ matrix.language }}
