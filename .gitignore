@@ -3,4 +3,3 @@ bin/
 __pycache__/
 *.pyc
 .release-automation/
-.release-signing-key
