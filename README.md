@@ -191,3 +191,9 @@ omcli 集成代码、iPhone USB 命令和 `codex` 使用 [MIT License](LICENSE)�
 `omzcj/dotfiles` 迁移的 ncdu 封装，以及从 `omzcj/lockscreen` 迁移的锁屏
 辅助程序，继续使用 [Apache License 2.0](LICENSE-APACHE)；组件说明见
 [NOTICE](NOTICE)。
+
+## 维护入口
+
+助手开发与验证边界见 [AGENTS.md](AGENTS.md)，发行与回执协议见
+[RELEASING.md](RELEASING.md)。项目具体决定跟随这些仓库文档维护，
+交接说明实际提交、检查与未完成项，不依赖其他项目会话的历史上下文。
