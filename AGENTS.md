@@ -9,36 +9,28 @@
 - 不在本地测试真实功能，不把开发产物安装到 Homebrew prefix。不得执行锁屏、磁盘扫描或清理、Sidecar 连接、iPhone SSH、Codex writer 恢复等有副作用的命令。
 - 自动化检查通过不等于功能已经人工验证；交付时明确列出未做的运行时验证。
 
-## 开发完成后的候选发行
+## 自动发行（2026-10-25 用户决定）
 
-- 用户已决定：正常开发任务的代码进入 `main` 且源码 CI 通过后，先核实本产品已有发布代理，再复用或创建一个 Beta Release subagent；用户明确说“只开发”或“不要发布”时除外。
-- 每个产品同时最多一个未交接的发布代理，跨开发会话也要检查；Beta、重试和 Promote 是同一发布职责的不同阶段，优先复用原代理，不因失败、换阶段或查询进度再创建代理。代理不得再派生子代理。只传准确源码、授权范围、检查结果和持久回执，不继承不必要的完整聊天上下文。
-- Beta Release subagent 使用独立 Git worktree，固定源码 commit，先确认没有同产品候选发行正在进行，再按 `RELEASING.md` 创建版本候选、版本 PR 并发布不可变 beta。主会话委派后保持可响应；按 `RELEASING.md` 的回传与接收协议收尾，不把派发成功当成交付，也不以频繁轮询或重复创建代理代替通知。
-- 如果无法创建 subagent、发行状态冲突或需要用户处理权限，停止自动链路并报告；不要悄悄退回开发主会话执行长时间发行。
+开发完成后立即从固定源码提交启动 `.github/workflows/beta.yml`，不等源码 CI 或人工体验确认。
+同仓库、非 draft 的开发 PR 添加 `release` 标签后，后续 source 更新会自动请求新候选；
+也可由仓库 writer 对本仓库分支的准确 head 派发：
 
-## 正式提升
+```sh
+gh workflow run beta.yml --ref main --field source_ref=<40位准确源码SHA>
+```
 
-- beta 不自动成为正式版。只有用户明确指出批准的 beta tag 及对应 SHA-256 后，主会话才交由仍可用的原发布代理执行 Promote；原代理已关闭或不可恢复时，核实其已停止写入并从回执恢复一个替代代理。
-- Promote subagent 必须从 GitHub API 读取默认分支、拉取准确的远端 HEAD，并验证版本 PR 已合入、候选 commit 是该 HEAD 的祖先、候选仍为 prerelease、实际 SHA-256 同时匹配候选校验文件和用户批准值、归档结构有效，然后复用用户批准的同一份 tar.gz 和校验文件创建稳定 Release。
-- 不重新打包，不允许用另一个候选替代用户批准的 tag；失败后停止，不自动改发新版本。
-- 候选合入优先使用保留原 SHA 的普通非强推 fast-forward；依 `RELEASING.md` 复核远端、批准及 CI 后执行并回读。不得为发行关闭或绕过分支保护；分叉、并发变化或保护拒绝时停止，不 squash/rebase 已批准候选。
-
-## Homebrew 解耦
-
-- 产品 GitHub Release 完整验证后，本次发行结束。Beta/Promote subagent 不读取或修改 Homebrew Tap，不触发 Autobump，也不安装三台设备。
-- Homebrew Tap 通过每日定时 Autobump 独立追踪稳定 Release；其检查、合并和安装按 Tap 仓库规则另行处理。
-
-## 权限与失败边界
-
-- 上述自动产品发行是用户确认的默认工作流；版本冲突、签名/凭据失败、需要改变发行范围或工作流安全检查失败时再请求用户处理。
-- 暂不发送飞书发布通知。完成、失败、阻塞或待用户体验时，发布代理必须先保存回执，再主动向主会话发送结果并提交最终回答；主会话核实并告知用户后确认接收、关闭代理。具体协议与当前平台限制见 `RELEASING.md`。
-- `completed`、`interrupted`、`archived` 和数据库 `open` 均不能证明 MCP/管道已释放。没有 `close_agent` 等受支持关闭工具时记录 `close_unavailable`，不把 interrupt 或归档冒充关闭，不改产品数据库、不终止共享后台、不调高系统限额。
-- 发布只使用所需的 shell/Git/GitHub/校验工具，不启动 Computer Use、应用 UI 或无关 MCP；当前 spawn 接口不能单独裁剪继承的 MCP，不宣称已有隔离。
-- 不为通过发行而降低检查、重跑有副作用命令、覆盖已有 tag/Release、强推、删除远端历史或修改无关包。
+- 受信任默认分支 workflow 调用固定 SHA 的 brew-ci 协调脚本，创建独立 `release/auto-<run-id>` 分支与候选 PR，不回写开发分支或本地工作树。以当前默认分支合入请求源码后分配新的 `YYYY.MM.DD.N`，候选 PR 指向准确 commit/tree。组织允许相关权限，只在这两个产品仓库启用 Actions 创建候选 PR。
+- 包构建与单元/回归测试、CodeQL 快速语言扫描并行。Beta 只等包和必要分发验证，不等质量测试；Beta 可在安装体验前因 CI 已通过而自动提升。
+- Beta、manifest、SHA 不可覆盖。重试已存在的 Beta 时下载原制品，不重新构建。失败保留候选与 CI 证据；修复后创建新版本，旧版本不覆盖。
+- `release-state` 分支保留最新候选与版本预留。准备候选、移动 Beta feed、正式提升共用 publication concurrency；构建/测试不持有发布锁。发布前核对候选身份及开发 PR 最新 head，已取代候选不得写 feed 或正式版。
+- 自动测试报告到准确候选 SHA，保留原有严格分支保护。CI 成功后以 squash 合入候选 PR，要求合入 tree 与已测试候选 tree 完全一致；有冲突或并发基线变化时停止，不绕过保护，不把不同源码当作同一候选。
+- 正式版从 GitHub 下载 Beta 原制品，验证 manifest 和 SHA，然后发布相同字节；不重新构建、签名或公证。正式标签指向同 tree 的合入 commit，manifest 保留 source/candidate 身份。
+- 不要求 Git 标签签名，不为此维护额外密钥；正式标签仍不可覆盖，指向受保护合入且 tree 与候选一致的 commit。应用签名、公证及更新签名不受此简化影响。
+- 不再需要发布 subagent、`release-approved` 标签、人工复制候选 SHA 批准或单独 Promote 派发。失败任务可从同一 Actions run 重跑；新源码使用新请求。产品 Release 完成不等待 Tap，不升级设备，不发送飞书通知。
 
 ## 文档与接续
 
 - 用户使用说明放 `README.md`，开发约定放本文件，发行决定与回执协议只在 `RELEASING.md` 维护；不复制 Amadeus 的个人资料或其他项目上下文。
-- 开始或接续发行前按发行文档核对共享 Git 目录中的未接收回执和远端实际状态；普通开发只读取当前任务需要的内容。
+- 开始或接续发行先核对 Actions run、release-state、候选 PR 和远端实际状态；普通开发只读取当前任务需要的内容。
 - 单纯文档维护不自动启动 Beta/Promote；提交和推送遵循当前任务授权，不创建版本 tag、不调整 `VERSION`。
 - 交接注明准确提交、实际检查、未验证项、阻塞及具体下一步；不要将推送成功等同于发行或真实功能验收。

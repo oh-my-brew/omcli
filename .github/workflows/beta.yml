@@ -1,42 +1,210 @@
-name: Beta candidate
-
+name: Fast Beta and Automatic Release
 on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Exact 40-character candidate commit prepared by the Beta Release subagent
+        description: Exact source commit at an open development PR head
         required: true
         type: string
-      beta_number:
-        description: Positive beta counter for the VERSION in source_ref
-        required: true
-        type: string
-
+  pull_request_target:
+    types: [labeled, synchronize, ready_for_review]
 permissions:
-  contents: write
-
-concurrency:
-  group: beta-${{ github.repository }}
-  cancel-in-progress: false
-
+  contents: read
 jobs:
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       !github.event.pull_request.draft &&
+       !startsWith(github.event.pull_request.head.ref, 'release/auto-') &&
+       contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: product-publication
+      cancel-in-progress: false
+    outputs:
+      candidate: ${{ steps.prepare.outputs.candidate }}
+      version: ${{ steps.prepare.outputs.version }}
+      metadata: ${{ steps.prepare.outputs.metadata }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: oh-my-infra/brew-ci
+          ref: ddeb36362b5336f33ca94788884d78d1847ce7c2
+          path: .release-automation
+          persist-credentials: false
+      - name: Reserve latest candidate and isolated version PR
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCT: omcli
+        run: python3 .release-automation/scripts/fast_release.py prepare
+
+  test:
+    needs: prepare
+    name: test
+    runs-on: macos-26
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.candidate }}
+          persist-credentials: false
+      - name: Candidate tests in parallel with packaging
+        id: tests
+        run: |
+          make build
+          sh tests/test.sh
+      - name: Report exact candidate result for branch protection
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ needs.prepare.outputs.candidate }}
+          OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          state=failure
+          if [[ "$OUTCOME" == success ]]; then state=success; fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$CANDIDATE" \
+            -f "state=$state" -f "context=test" \
+            -f "target_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+  security:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.candidate }}
+          persist-credentials: false
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          category: fast-candidate-${{ matrix.language }}
+
+  package:
+    needs: prepare
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_JSON: ${{ needs.prepare.outputs.metadata }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      CANDIDATE_COMMIT: ${{ needs.prepare.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.candidate }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: oh-my-infra/brew-ci
+          ref: ddeb36362b5336f33ca94788884d78d1847ce7c2
+          path: .release-automation
+          persist-credentials: false
+      - name: Reject superseded candidates before build or signing
+        run: python3 .release-automation/scripts/fast_release.py check
+      - name: Reuse immutable Beta after a retry
+        id: existing
+        run: |
+          set -euo pipefail
+          tag=$(python3 -c 'import json,os;print(json.loads(os.environ["RELEASE_JSON"])["beta_tag"])')
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            mkdir -p dist
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir dist
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build once and package reproducibly without running tests
+        if: steps.existing.outputs.reused != 'true'
+        run: |
+          set -euo pipefail
+          make build
+          python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
+            --output "dist/omcli-$VERSION.tar.gz" VERSION bin LICENSE LICENSE-APACHE LICENSE-SIDECARLAUNCHER NOTICE README.md Makefile src tests
+          python3 .release-automation/scripts/package_release.py --name omcli --version "$VERSION" \
+            --output "$RUNNER_TEMP/repeat.tar.gz" VERSION bin LICENSE LICENSE-APACHE LICENSE-SIDECARLAUNCHER NOTICE README.md Makefile src tests
+          cmp "dist/omcli-$VERSION.tar.gz" "$RUNNER_TEMP/repeat.tar.gz"
+
+      - name: Record immutable artifact identity
+        if: steps.existing.outputs.reused != 'true'
+        run: python3 .release-automation/scripts/fast_release.py manifest
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: candidate-${{ github.run_id }}
+          retention-days: 7
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+            dist/release-manifest.json
+            dist/appcast*.xml
+          if-no-files-found: error
+
   beta:
-    uses: oh-my-infra/brew-ci/.github/workflows/source-beta.yml@6e26fbaf6abe40fa277497a0b68d44c90ee02297
-    with:
-      automation-ref: 6e26fbaf6abe40fa277497a0b68d44c90ee02297
-      source-ref: ${{ inputs.source_ref }}
-      beta-number: ${{ inputs.beta_number }}
-      runner: macos-26
-      project-name: omcli
-      validate-command: make build && sh tests/test.sh
-      package-paths: |
-        VERSION
-        bin
-        LICENSE
-        LICENSE-APACHE
-        LICENSE-SIDECARLAUNCHER
-        NOTICE
-        README.md
-        Makefile
-        src
-        tests
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    concurrency:
+      group: product-publication
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_JSON: ${{ needs.prepare.outputs.metadata }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: oh-my-infra/brew-ci
+          ref: ddeb36362b5336f33ca94788884d78d1847ce7c2
+          path: .release-automation
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: candidate-${{ github.run_id }}
+          path: dist
+      - name: Publish installable Beta without waiting for quality jobs
+        run: python3 .release-automation/scripts/fast_release.py beta
+
+  promote:
+    needs: [prepare, test, security, beta]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: product-publication
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_JSON: ${{ needs.prepare.outputs.metadata }}
+      RELEASE_DIRECTORY: promoted
+    steps:
+      - name: Check out trusted default branch and pinned signing identity
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: oh-my-infra/brew-ci
+          ref: ddeb36362b5336f33ca94788884d78d1847ce7c2
+          path: .release-automation
+          persist-credentials: false
+      - name: Protected merge and same-artifact automatic promotion
+        run: python3 .release-automation/scripts/fast_release.py promote
